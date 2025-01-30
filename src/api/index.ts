@@ -14,7 +14,9 @@ wss.on("connection", (socket) => {
   // ⚠️ SERVER ALWAYS RECIEVES BUFFER
   // convert BUFFER to STRING using toString()
   // convert STRING to JSON.parse provided you were expecting a JS OBJECT
-  socket.on("message", (obj) => {});
+  socket.on("message", (obj) => {
+    const action = JSON.parse(obj.toString());
+  });
 });
 
 server.listen(process.env.PORT, () =>
