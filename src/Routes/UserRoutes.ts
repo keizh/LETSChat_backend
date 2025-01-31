@@ -61,7 +61,12 @@ UserRouter.post(
         picture,
       }: { email: string; name: string; picture: string; id: string } =
         await userEmail.json();
-
+      console.log({
+        email,
+        id,
+        name,
+        picture,
+      });
       // FETCHING EMAIL , ID FROM GOOGLE API
       // google id will be used to make new USER with _id
 
@@ -88,6 +93,7 @@ UserRouter.post(
           email: email,
         });
         const newUserSaved = await newUser.save();
+        console.log(newUserSaved);
         jwtTOKEN = jwt.sign(
           {
             id: newUserSaved?._id,
