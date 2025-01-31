@@ -9,6 +9,11 @@ const GROUP_CHAT = new mongoose.Schema(
       unique: true,
       index: true,
     },
+    groupName: {
+      type: String,
+      required: true,
+      unique: true,
+    },
     participants: [
       {
         type: String,
@@ -40,6 +45,11 @@ const GROUP_CHAT = new mongoose.Schema(
     roomId: {
       required: true,
       type: String,
+    },
+    profileURL: {
+      type: String,
+      default:
+        "https://images.stockcake.com/public/5/d/9/5d96090c-be82-4b6e-b8a7-9945b06fc214_large/joyful-friends-together-stockcake.jpg",
     },
   },
   { timestamps: true, _id: false }

@@ -2,10 +2,13 @@ import "dotenv/config";
 import express from "express";
 import http from "http";
 import WebSocket, { WebSocketServer } from "ws";
+import UserRouter from "../Routes/UserRoutes";
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
+
+app.use("/user", UserRouter);
 
 wss.on("connection", (socket) => {
   socket.on("open", () => {

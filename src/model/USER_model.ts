@@ -6,7 +6,6 @@ const USERSchema = new mongoose.Schema(
     _id: {
       type: String,
       required: true,
-      unique: true,
     },
     name: {
       type: String,
@@ -20,6 +19,12 @@ const USERSchema = new mongoose.Schema(
     lastOnline: {
       type: Number,
       default: Date.now,
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
     },
   },
   { timestamps: true, _id: false }
