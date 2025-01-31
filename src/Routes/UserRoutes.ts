@@ -3,19 +3,20 @@ import jwt from "jsonwebtoken";
 import USER_model from "../model/USER_model";
 const UserRouter = Router();
 
-UserRouter.get("google/oath", (req: Request, res: Response): void => {
+// TEST ON BOTH FRONTEND & BACKEND ~ WORKING
+UserRouter.get("/google/oath", (req: Request, res: Response): void => {
   const googleOAuthURL: string = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=${process.env.GOOGLE_BACKEND_REDIRECT_URI}&response_type=code&scope=profile email`;
-  res.reconnect(googleOAuthURL);
+  res.redirect(googleOAuthURL);
 });
 
-UserRouter.post(
+UserRouter.get(
   "/google/oauth/redirect",
   async (
     req: Request<{}, {}, {}, { code: string }>,
     res: Response
   ): Promise<void> => {
     const { code } = req.query;
-
+    console.log(`LINE 19`, code);
     const bodyData: {
       client_id: string | undefined;
       client_secret: string | undefined;
@@ -43,14 +44,14 @@ UserRouter.post(
       );
       const { access_token }: { access_token: string } =
         await googleOAuthAccessTokenRes.json();
-
+      console.log(`LINE 47`, access_token);
       const userEmail = await fetch(
         `https://www.googleapis.com/oauth2/v1/userinfo`,
         {
           method: "GET",
           headers: {
             Accept: "application/json",
-            "Content-Type": `Bearer ${access_token}`,
+            Authorization: `Bearer ${access_token}`,
           },
         }
       );
@@ -61,12 +62,7 @@ UserRouter.post(
         picture,
       }: { email: string; name: string; picture: string; id: string } =
         await userEmail.json();
-      console.log({
-        email,
-        id,
-        name,
-        picture,
-      });
+      console.log(`LINE 65`, email, id, name, picture);
       // FETCHING EMAIL , ID FROM GOOGLE API
       // google id will be used to make new USER with _id
 
@@ -107,7 +103,7 @@ UserRouter.post(
         );
       }
       res.redirect(
-        `${process.env.local_frontend_url}/auth/user/home?jwt=${jwtTOKEN}`
+        `${process.env.LOCAL_FRONTEND_URL}/user/auth?jwt=${jwtTOKEN}`
       );
     } catch (err: unknown) {
       console.error(err instanceof Error ? err.message : "");
