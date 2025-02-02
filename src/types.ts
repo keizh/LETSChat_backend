@@ -4,6 +4,7 @@ export interface objectOfUsersInterface {
   [userId: string]: {
     IsUserActiveInAnyChat: boolean;
     ActiveChatRoomId: null | string;
+    socket: WebSocket;
   };
 }
 

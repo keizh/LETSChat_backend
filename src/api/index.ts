@@ -12,10 +12,21 @@ import {
   UpdateobjectOfRoomsLogin,
   UpdateobjectOfRoomsLogout,
 } from "../utils/ExecutionerFn";
+import cors from "cors";
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
+
+app.use(
+  cors({
+    origin: "*",
+    methods: ["PUT", "PATCH", "GET", "POST", "DELETE"],
+    allowedHeaders: ["Authorization", "Content-Type"],
+    // credentials:true,
+    optionsSuccessStatus: 204,
+  })
+);
 
 app.use(express.json());
 
@@ -31,6 +42,7 @@ wss.on("connection", (socket) => {
   // convert BUFFER to STRING using toString()
   // convert STRING to JSON.parse provided you were expecting a JS OBJECT
   // PRE-DEFINED EVENTS : message , error , close , open
+  console.log(`websocket connection has been established`);
   socket.on("message", (obj) => {
     // parsing the object recieved from client
     const action = JSON.parse(obj.toString());
@@ -41,14 +53,17 @@ wss.on("connection", (socket) => {
         objectOfUsers[userIdLogin] = {
           IsUserActiveInAnyChat: false,
           ActiveChatRoomId: null,
+          socket: socket,
         };
-        UpdateobjectOfRoomsLogin(userIdLogin);
+        // console.log(`LINE 46`, objectOfUsers);
+        // UpdateobjectOfRoomsLogin(userIdLogin);
         break;
       // ⚠️ HANDLE CLIENT LOGOUT
       case "LOGOUT":
         const { userId: userIdLogout } = action.payload;
         delete objectOfUsers[userIdLogout];
-        UpdateobjectOfRoomsLogout(userIdLogin);
+        // console.log(`LINE 53`, objectOfUsers);
+        // UpdateobjectOfRoomsLogout(userIdLogin);
         break;
       default:
         console.log(`default action has been hit`);

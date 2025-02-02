@@ -15,17 +15,30 @@ CharRouter.get(
     let totalPages: number;
     let hasMore: boolean;
 
-    const { pageDataNeeded } = req.body;
-    curPage = pageDataNeeded;
-    nextPage = pageDataNeeded + 1;
+    const { page } = req.query;
+    console.log(`LINE 20`, page);
+    curPage = parseInt(page);
+    nextPage = parseInt(page) + 1;
     let skip = (curPage - 1) * limit;
-
+    const userId = req.userId;
+    console.log(userId);
     try {
-      const AllUsers = await USER_model.find().lean();
+      let AllUsers = await USER_model.find({
+        _id: { $nin: [userId] },
+      }).lean();
       totalDocuments = AllUsers.length;
       totalPages = Math.ceil(totalDocuments / limit);
       hasMore = totalPages > curPage;
-      const data = await USER_model.find().skip(skip).limit(limit);
+      const data = await USER_model.find({ _id: { $nin: [userId] } })
+        .skip(skip)
+        .limit(limit);
+      console.log({
+        totalPages,
+        totalDocuments,
+        curPage,
+        nextPage,
+        hasMore,
+      });
       res.status(200).json({
         totalPages,
         totalDocuments,
@@ -40,16 +53,16 @@ CharRouter.get(
   }
 );
 
-CharRouter.get(
-  "/contacts",
-  AuthorizedRoute,
-  async (req: Request, res: Response): Promise<void> => {
-    const {} = req.body;
-    try {
-    } catch (err: unknown) {
-      res.status(500).json({ message: "Server Error : fetching contacts" });
-    }
-  }
-);
+// CharRouter.get(
+//   "/contacts",
+//   AuthorizedRoute,
+//   async (req: Request, res: Response): Promise<void> => {
+//     const {} = req.body;
+//     try {
+//     } catch (err: unknown) {
+//       res.status(500).json({ message: "Server Error : fetching contacts" });
+//     }
+//   }
+// );
 
 export default CharRouter;
