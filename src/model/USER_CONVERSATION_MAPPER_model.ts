@@ -9,6 +9,8 @@ const USER_CONVERSATION_MAPPER = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
+      index: true,
+      sparse: true,
     },
     ONE2ONEchat: [
       {

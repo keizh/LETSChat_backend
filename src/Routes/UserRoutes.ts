@@ -18,7 +18,7 @@ UserRouter.get(
     res: Response
   ): Promise<void> => {
     const { code } = req.query;
-    console.log(`LINE 19`, code);
+    // console.log(`LINE 19`, code);
     const bodyData: {
       client_id: string | undefined;
       client_secret: string | undefined;
@@ -46,7 +46,7 @@ UserRouter.get(
       );
       const { access_token }: { access_token: string } =
         await googleOAuthAccessTokenRes.json();
-      console.log(`LINE 47`, access_token);
+      // console.log(`LINE 47`, access_token);
       const userEmail = await fetch(
         `https://www.googleapis.com/oauth2/v1/userinfo`,
         {
@@ -64,7 +64,7 @@ UserRouter.get(
         picture,
       }: { email: string; name: string; picture: string; id: string } =
         await userEmail.json();
-      console.log(`LINE 65`, email, id, name, picture);
+      // console.log(`LINE 65`, email, id, name, picture);
       // FETCHING EMAIL , ID FROM GOOGLE API
       // google id will be used to make new USER with _id
 
@@ -92,7 +92,7 @@ UserRouter.get(
           email: email,
         });
         const newUserSaved = await newUser.save();
-        console.log(newUserSaved);
+        // console.log(newUserSaved);
         jwtTOKEN = jwt.sign(
           {
             id: newUserSaved?._id,
@@ -105,6 +105,7 @@ UserRouter.get(
           { expiresIn: "12h" }
         );
         // creating a userDOcument for USER_CHAT_LAST_ACCESS_TIME
+        // console.log(`108`, newUserSaved._id);
         const newDocToSave1 = new USER_CHAT_LAST_ACCESS_TIME_model({
           userId: newUserSaved._id,
           lastAccessTime: [],

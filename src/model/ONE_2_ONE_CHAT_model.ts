@@ -6,7 +6,6 @@ const ONE_2_ONE_CHAT_Schema = new mongoose.Schema(
     _id: {
       type: String,
       required: true,
-      unique: true,
     },
     participants: [
       {
@@ -22,17 +21,12 @@ const ONE_2_ONE_CHAT_Schema = new mongoose.Schema(
         },
         payload: {
           type: String,
-          required: true,
         },
         mssgId: {
           type: String,
-          required: true,
-          index: true,
-          unique: true,
         },
         uploadTime: {
           type: String,
-          default: Date.now,
         },
       },
     ],

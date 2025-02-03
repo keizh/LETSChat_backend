@@ -56,7 +56,7 @@ wss.on("connection", (socket) => {
           ActiveChatRoomId: null,
           socket: socket,
         };
-        console.log(`LINE 46`, objectOfUsers);
+        // console.log(`LINE 46`, objectOfUsers);
         UpdateobjectOfRoomsLogin(userIdLogin, socket);
         break;
 
@@ -64,8 +64,8 @@ wss.on("connection", (socket) => {
       case "LOGOUT":
         const { userId: userIdLogout } = action.payload;
         delete objectOfUsers[userIdLogout];
-        console.log(`LINE 53`, objectOfUsers);
-        UpdateobjectOfRoomsLogout(userIdLogin);
+        // console.log(`LINE 53`, objectOfUsers);
+        UpdateobjectOfRoomsLogout(userIdLogout);
         break;
       default:
         console.log(`default action has been hit`);

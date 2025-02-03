@@ -8,17 +8,17 @@ const USER_CHAT_LAST_ACCESS_TIME = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
+      index: true,
+      sparse: true,
     },
     lastAccessTime: [
       {
         roomId: {
           type: String,
           unique: true,
-          required: true,
         },
-        lastAccessTime: {
+        lastAccessMoment: {
           type: Number,
-          default: Date.now,
         },
       },
     ],

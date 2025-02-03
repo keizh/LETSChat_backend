@@ -32,8 +32,6 @@ const GROUP_CHAT = new mongoose.Schema(
         mssgId: {
           type: String,
           required: true,
-          index: true,
-          unique: true,
         },
         uploadTime: {
           type: String,
