@@ -8,7 +8,6 @@ const USER_CHAT_LAST_ACCESS_TIME = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
-      index: true,
     },
     lastAccessTime: [
       {

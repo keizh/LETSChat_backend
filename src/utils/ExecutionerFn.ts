@@ -1,4 +1,4 @@
-import USER_CONVERSATION_MAPPER_MODEL from "../model/USER_CONVERSATION_MAPPER_model";
+import { USER_CONVERSATION_MAPPER_MODEL } from "../model/modelIndex";
 import { objectOfRooms } from "../api/index";
 import { USER_CONVERSATION_MAPPER_Interface } from "../types";
 
@@ -11,7 +11,7 @@ export const UpdateobjectOfRoomsLogin = async (userId, socket) => {
       .populate("GROUPchat", "roomId")
       .lean()) as USER_CONVERSATION_MAPPER_Interface;
 
-    userFetched?.ONE2ONEchat.map((obj) => {
+    userFetched?.ONE2ONEchat?.map((obj) => {
       // retrieving value from objectOfRooms for key= roomId
       let value = objectOfRooms[obj?.roomId];
       if (!value) {
@@ -28,7 +28,7 @@ export const UpdateobjectOfRoomsLogin = async (userId, socket) => {
       }
     });
 
-    userFetched?.GROUPchat.map((obj) => {
+    userFetched?.GROUPchat?.map((obj) => {
       // retrieving value from objectOfRooms for key= roomId
       let value = objectOfRooms[obj?.roomId];
       if (!value) {
@@ -63,7 +63,7 @@ export const UpdateobjectOfRoomsLogout = async (userId) => {
       .populate("ONE2ONEchat", "roomId")
       .populate("GROUPchat", "roomId")) as USER_CONVERSATION_MAPPER_Interface;
 
-    userFetched?.ONE2ONEchat.map((obj) => {
+    userFetched?.ONE2ONEchat?.map((obj) => {
       // At login we made sure roomId present inside of obj variable on line 67 become key in function UpdateobjectOfRoomsLogin
 
       const arrToFilter = [...objectOfRooms[obj?.roomId]];
@@ -73,7 +73,7 @@ export const UpdateobjectOfRoomsLogout = async (userId) => {
       ];
     });
 
-    userFetched?.GROUPchat.map((obj) => {
+    userFetched?.GROUPchat?.map((obj) => {
       // At login we made sure roomId present inside of obj variable on line 77 become key in function UpdateobjectOfRoomsLogin
 
       const arrToFilter = [...objectOfRooms[obj?.roomId]];

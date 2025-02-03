@@ -1,6 +1,6 @@
 import express, { Router, Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import USER_model from "../model/USER_model";
+import { USER_model } from "../model/modelIndex";
 const CharRouter = Router();
 import AuthorizedRoute from "../utils/AuthorizedRoute";
 

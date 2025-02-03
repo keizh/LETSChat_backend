@@ -2,7 +2,7 @@ import "dotenv/config";
 import express from "express";
 import http from "http";
 import WebSocket, { WebSocketServer } from "ws";
-import USER_model from "../model/USER_model";
+import { USER_model } from "../model/modelIndex";
 import UserRouter from "../Routes/UserRoutes";
 import CharRouter from "../Routes/ChatRoutes";
 import db_connect from "../DB/db_connect";

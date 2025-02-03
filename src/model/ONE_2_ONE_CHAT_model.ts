@@ -1,13 +1,12 @@
 import mongoose from "mongoose";
 
-const ONE_2_ONE_CHAT = new mongoose.Schema(
+const ONE_2_ONE_CHAT_Schema = new mongoose.Schema(
   {
     // chatID - "PERSONAL-UUID"
     _id: {
       type: String,
       required: true,
       unique: true,
-      index: true,
     },
     participants: [
       {
@@ -45,6 +44,9 @@ const ONE_2_ONE_CHAT = new mongoose.Schema(
   { timestamps: true, _id: false }
 );
 
-const ONE_2_ONE_CHAT_model = mongoose.model("ONE_2_ONE_CHAT", ONE_2_ONE_CHAT);
+const ONE_2_ONE_CHAT_model = mongoose.model(
+  "ONE_2_ONE_CHAT",
+  ONE_2_ONE_CHAT_Schema
+);
 
 export default ONE_2_ONE_CHAT_model;

@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
-
+import ONE_2_ONE_CHAT_model from "./ONE_2_ONE_CHAT_model";
+import GROUP_CHAT_model from "./GROUP_CHAT_model";
 const USER_CONVERSATION_MAPPER = new mongoose.Schema(
   {
     // userId of the user to whom this document belongs
@@ -8,7 +9,6 @@ const USER_CONVERSATION_MAPPER = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
-      index: true,
     },
     ONE2ONEchat: [
       {
