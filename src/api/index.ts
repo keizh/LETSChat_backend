@@ -46,6 +46,7 @@ wss.on("connection", (socket) => {
   socket.on("message", (obj) => {
     // parsing the object recieved from client
     const action = JSON.parse(obj.toString());
+
     switch (action.type) {
       // ⚠️ HANDLE CLIENT LOGIN
       case "LOGIN":
@@ -55,15 +56,16 @@ wss.on("connection", (socket) => {
           ActiveChatRoomId: null,
           socket: socket,
         };
-        // console.log(`LINE 46`, objectOfUsers);
-        // UpdateobjectOfRoomsLogin(userIdLogin);
+        console.log(`LINE 46`, objectOfUsers);
+        UpdateobjectOfRoomsLogin(userIdLogin, socket);
         break;
+
       // ⚠️ HANDLE CLIENT LOGOUT
       case "LOGOUT":
         const { userId: userIdLogout } = action.payload;
         delete objectOfUsers[userIdLogout];
-        // console.log(`LINE 53`, objectOfUsers);
-        // UpdateobjectOfRoomsLogout(userIdLogin);
+        console.log(`LINE 53`, objectOfUsers);
+        UpdateobjectOfRoomsLogout(userIdLogin);
         break;
       default:
         console.log(`default action has been hit`);

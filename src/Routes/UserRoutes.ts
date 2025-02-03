@@ -2,6 +2,8 @@ import express, { Router, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import USER_model from "../model/USER_model";
 const UserRouter = Router();
+import USER_CHAT_LAST_ACCESS_TIME_model from "../model/USER_CHAT_LAST_ACCESS_TIME_model";
+import USER_CONVERSATION_MAPPER_MODEL from "../model/USER_CONVERSATION_MAPPER_model";
 
 // TEST ON BOTH FRONTEND & BACKEND ~ WORKING
 UserRouter.get("/google/oath", (req: Request, res: Response): void => {
@@ -82,6 +84,7 @@ UserRouter.get(
           { expiresIn: "12h" }
         );
       } else {
+        // creating new user
         const newUser = new USER_model({
           _id: id,
           name: name,
@@ -101,6 +104,19 @@ UserRouter.get(
           process.env.JWT_SECRET_KEY,
           { expiresIn: "12h" }
         );
+        // creating a userDOcument for USER_CHAT_LAST_ACCESS_TIME
+        const newDocToSave1 = new USER_CHAT_LAST_ACCESS_TIME_model({
+          userId: newUserSaved._id,
+          lastAccessTime: [],
+        });
+        await newDocToSave1.save();
+        // creating a userDOcument for USER_CONVERSATION_MAPPER
+        const newDocToSave2 = new USER_CONVERSATION_MAPPER_MODEL({
+          userId: newUserSaved._id,
+          ONE2ONEchat: [],
+          GROUPchat: [],
+        });
+        await newDocToSave2.save();
       }
       res.redirect(
         `${process.env.LOCAL_FRONTEND_URL}/user/auth?jwt=${jwtTOKEN}`
