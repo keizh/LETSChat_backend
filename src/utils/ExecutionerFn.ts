@@ -51,7 +51,7 @@ export const UpdateobjectOfRoomsLogin = async (userId, socket) => {
       }
     });
 
-    console.log(`objectOfRooms at login ==>`, objectOfRooms);
+    // console.log(`objectOfRooms at login ==>`, objectOfRooms);
   } catch (err: unknown) {
     console.error(
       `Error occured in UpdateobjectOfRoomsLogin , Reason : ${

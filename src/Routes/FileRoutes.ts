@@ -50,7 +50,7 @@ fileRouter.post(
 
       const isItGroupChat = chatId.includes("PERSONAL");
 
-      files.forEach(async (file) => {
+      files?.forEach(async (file: any) => {
         const Filetype = file.type.split("/")[1];
         let type = assignType(Filetype);
         const mssgId = uuidv4();
@@ -91,7 +91,7 @@ fileRouter.post(
         }
 
         // RESPONSIBLE FOR SENDING MESSAGE IF OTHER PARTICIPANTS ARE ACTIVE IN ROOM OR ELSE SEND THEM ALERT
-        SendMessageToAllActiveMembers(mssgDOC, roomId, userId);
+        SendMessageToAllActiveMembers(mssgDOC, roomId, userId, chatId);
       });
 
       res.status(200).json({ message: "file uploaded" });

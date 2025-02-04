@@ -13,7 +13,10 @@ import { objectOfRooms, objectOfUsers } from "../api/index";
 ChatRouter.get(
   "/contacts",
   AuthorizedRoute,
-  async (req: Request, res: Response): Promise<void> => {
+  async (
+    req: Request<{}, {}, {}, { page: string }>,
+    res: Response
+  ): Promise<void> => {
     let limit: number = 15;
     let curPage: number;
     let nextPage: number;
@@ -21,6 +24,7 @@ ChatRouter.get(
     let totalPages: number;
     let hasMore: boolean;
 
+    // all query string become string from thier original datatype
     const { page } = req.query;
     // console.log(`LINE 20`, page);
     curPage = parseInt(page);
@@ -62,7 +66,10 @@ ChatRouter.get(
 ChatRouter.get(
   "/contacts/search",
   AuthorizedRoute,
-  async (req: Request, res: Response): Promise<void> => {
+  async (
+    req: Request<{}, {}, {}, { search: string }>,
+    res: Response
+  ): Promise<void> => {
     const { search } = req.query;
     const result = await USER_model.find({ name: new RegExp(search, "i") });
     // console.log(result);
@@ -81,12 +88,14 @@ ChatRouter.post(
   AuthorizedRoute,
   async (req, res): Promise<void> => {
     try {
-      const { participants } = req.body;
-      const userId = req.userId;
+      const { participants, userIdOfClient, userIdOfOppositeUser } = req.body;
+      const userId = req.userId as string;
       const data = await ONE_2_ONE_CHAT_model.findOne({
-        participants,
+        participants: participants.sort(),
       });
-      console.log(`82`, data);
+      console.log(`new document , `, data);
+      // console.log(`82`, data);
+      // if data does not exist, it means the ONE2ONE HAS YET TO CREATED
       if (!data) {
         let roomId = uuidv4();
         let _id = `PERSONAL-${uuidv4()}`;
@@ -96,16 +105,16 @@ ChatRouter.post(
           roomId,
           _id,
         });
-        console.log(`line 92 `, newData);
+        // console.log(`line 92 `, newData);
         let newONE2ONECHAT = await newData.save();
         // START : ADDING TO  USER_CONVERSATION_MAPPER_MODEL OF EACH PARTICIPANT
         await USER_CONVERSATION_MAPPER_MODEL.findOneAndUpdate(
-          { userId: participants[0] },
+          { userId: userIdOfClient },
           { $addToSet: { ONE2ONEchat: _id } },
           { new: true }
         );
         await USER_CONVERSATION_MAPPER_MODEL.findOneAndUpdate(
-          { userId: participants[1] },
+          { userId: userIdOfOppositeUser },
           { $addToSet: { ONE2ONEchat: _id } },
           { new: true }
         );
@@ -125,34 +134,43 @@ ChatRouter.post(
         // ADDING FOR THE SECOND USER , if he is active/online
         // participant[1] --> opposite user
         const websocketInstanceCorrespondingToOppositeUser = objectOfUsers[
-          participants[1]
+          userIdOfOppositeUser
         ]
-          ? objectOfUsers[participants[1]].socket
+          ? objectOfUsers[userIdOfOppositeUser].socket // ~ true
           : null;
         if (websocketInstanceCorrespondingToOppositeUser) {
-          // before the below statement , key~roomId existed and also did the array
+          // before the below statement , key~roomId existed and also did the array , WITH VALUE = [PARTICIPANT[0].USERID]
           objectOfRooms[`${roomId}`] = [
             ...objectOfRooms[`${roomId}`],
             {
               WebSocketInstance: websocketInstanceCorrespondingToOppositeUser,
-              userId: participants[1],
+              userId: userIdOfOppositeUser,
             },
           ];
         }
 
-        console.log(`object of user`, objectOfUsers);
-        console.log(`object of rooms`, objectOfRooms);
-
+        console.log(
+          `object of user after creating doc with 0 messages`,
+          objectOfUsers
+        );
+        console.log(
+          `object of rooms after creating doc with 0 messages`,
+          objectOfRooms
+        );
         // END : ADDED NEW ROOM CREATED TO OBJECT_OF_ROOMS
 
+        // START : SETTING ACTIVE_ROOMId_of_user to this roomId , becuase on frontend this room will be active one for the moment
+        objectOfUsers[userId].ActiveChatRoomId = roomId;
+        // END : SETTING ACTIVE_ROOMId_of_user to this roomId , becuase on frontend this room will be active one for the moment
+
         res.status(200).json({ data: newONE2ONECHAT });
-        console.log(`94`, newONE2ONECHAT);
+        // console.log(`94`, newONE2ONECHAT);
         return;
       }
       // console.log(data);
       res.status(200).json({ data });
     } catch (err: unknown) {
-      console.log(`line 100`, err);
+      console.error(`line 100`, err);
       const mssg = err instanceof Error ? err.message : "";
       res.status(500).json({ message: mssg });
     }

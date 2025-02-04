@@ -1,13 +1,21 @@
 import Express, { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
+import jwt, { JwtPayload } from "jsonwebtoken";
 
 declare global {
-  namespace express {
+  namespace Express {
     interface Request {
       userId: string;
       files?: Express.Multer.File[];
     }
   }
+}
+
+interface CustomJwtPayload extends JwtPayload {
+  id: string;
+  name: string;
+  profileURL: string;
+  lastOnline: number;
+  email: string;
 }
 
 export default function AuthorizedRoute(
@@ -24,7 +32,10 @@ export default function AuthorizedRoute(
       return;
     }
 
-    var decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+    var decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET_KEY || ""
+    ) as CustomJwtPayload;
 
     req.userId = decoded?.id;
     next();

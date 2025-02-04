@@ -80,7 +80,7 @@ UserRouter.get(
             lastOnline: userExists?.lastOnline,
             email: userExists?.email,
           },
-          process.env.JWT_SECRET_KEY,
+          process.env.JWT_SECRET_KEY || "",
           { expiresIn: "12h" }
         );
       } else {
@@ -102,7 +102,7 @@ UserRouter.get(
             lastOnline: newUserSaved?.lastOnline,
             email: newUserSaved?.email,
           },
-          process.env.JWT_SECRET_KEY,
+          process.env.JWT_SECRET_KEY || "",
           { expiresIn: "12h" }
         );
         // creating a userDOcument for USER_CHAT_LAST_ACCESS_TIME

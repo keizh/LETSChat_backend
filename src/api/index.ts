@@ -72,7 +72,10 @@ wss.on("connection", (socket) => {
           socket: socket,
         };
         // console.log(`LINE 46`, objectOfUsers);
+        // async job inside of the below function so the reflection in objectOfRooms will take time
         UpdateobjectOfRoomsLogin(userIdLogin, socket);
+        console.log(`objectOfUser at login`, objectOfUsers);
+        console.log(`objectOfRoom at login`, objectOfRooms);
         break;
 
       // ⚠️ HANDLE CLIENT LOGOUT
@@ -80,7 +83,10 @@ wss.on("connection", (socket) => {
         const { userId: userIdLogout } = action.payload;
         delete objectOfUsers[userIdLogout];
         // console.log(`LINE 53`, objectOfUsers);
+        // async job inside of the below function so the reflection in objectOfRooms will take time
         UpdateobjectOfRoomsLogout(userIdLogout);
+        console.log(`objectOfUser at logout`, objectOfUsers);
+        console.log(`objectOfRoom at logout`, objectOfRooms);
         break;
 
       case "SEND/MESSAGE":
@@ -123,6 +129,13 @@ wss.on("connection", (socket) => {
         }
 
         SendMessageToAllActiveMembers(mssgDOC, roomId, userIdOfSender, chatId);
+        break;
+
+      case "CLOSE/CHAT":
+        const { userId: userIdToSetRoomIdToNull } = action.payload;
+        objectOfUsers[userIdToSetRoomIdToNull].ActiveChatRoomId = null;
+        console.log(`objectOfUser at closing chat`, objectOfUsers);
+        console.log(`objectOfRoom at closing chat`, objectOfRooms);
         break;
 
       default:
