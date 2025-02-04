@@ -15,14 +15,12 @@ const USER_CONVERSATION_MAPPER = new mongoose.Schema(
     ONE2ONEchat: [
       {
         type: String,
-        unique: true,
         ref: "ONE_2_ONE_CHAT",
       },
     ],
     GROUPchat: [
       {
         type: String,
-        unique: true,
         ref: "GROUP_CHAT",
       },
     ],

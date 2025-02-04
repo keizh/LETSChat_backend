@@ -21,13 +21,18 @@ const ONE_2_ONE_CHAT_Schema = new mongoose.Schema(
         },
         payload: {
           type: String,
+          required: true,
         },
         mssgId: {
           type: String,
+          required: true,
         },
         uploadTime: {
           type: String,
+          default: Date.now,
         },
+        senderId: String,
+        senderName: String,
       },
     ],
     roomId: {
@@ -36,6 +41,19 @@ const ONE_2_ONE_CHAT_Schema = new mongoose.Schema(
     },
   },
   { timestamps: true, _id: false }
+);
+
+ONE_2_ONE_CHAT_Schema.index(
+  {
+    "messages.mssgId": 1,
+  },
+  {
+    unique: true,
+    sparse: true,
+    partialFilterExpression: {
+      "messages.mssgId": { $exists: true },
+    },
+  }
 );
 
 const ONE_2_ONE_CHAT_model = mongoose.model(

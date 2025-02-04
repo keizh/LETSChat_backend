@@ -1,5 +1,6 @@
 import "dotenv/config";
 import express from "express";
+const cloudinary = require("cloudinary").v2;
 import http from "http";
 import WebSocket, { WebSocketServer } from "ws";
 import { USER_model } from "../model/modelIndex";
@@ -13,6 +14,13 @@ import {
   UpdateobjectOfRoomsLogout,
 } from "../utils/ExecutionerFn";
 import cors from "cors";
+import fileRouter from "../Routes/FileRoutes";
+
+cloudinary.config({
+  cloud_name: process.env.cloud_name,
+  api_key: process.env.api_key,
+  api_secret: process.env.api_secret,
+});
 
 const app = express();
 const server = http.createServer(app);
@@ -32,6 +40,7 @@ app.use(express.json());
 
 app.use("/user", UserRouter);
 app.use("/chat", CharRouter);
+app.use("/file", fileRouter);
 
 export const objectOfUsers: objectOfUsersInterface = {};
 export const objectOfRooms: objectOfRoomsInterface = {};

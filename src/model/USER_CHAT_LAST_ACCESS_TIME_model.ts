@@ -7,23 +7,34 @@ const USER_CHAT_LAST_ACCESS_TIME = new mongoose.Schema(
     userId: {
       type: String,
       required: true,
-      unique: true,
-      index: true,
-      sparse: true,
     },
     lastAccessTime: [
       {
         roomId: {
           type: String,
-          unique: true,
+          required: true,
         },
         lastAccessMoment: {
           type: Number,
+          default: Date.now,
         },
       },
     ],
   },
   { timestamps: true }
+);
+
+USER_CHAT_LAST_ACCESS_TIME.index(
+  {
+    "lastAccessTime.roomId": 1,
+  },
+  {
+    unique: true,
+    sparse: true,
+    partialFilterExpression: {
+      "lastAccessTime.roomId": { $exists: true },
+    },
+  }
 );
 
 const USER_CHAT_LAST_ACCESS_TIME_model = mongoose.model(

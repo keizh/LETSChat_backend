@@ -52,6 +52,17 @@ const GROUP_CHAT = new mongoose.Schema(
   { timestamps: true, _id: false }
 );
 
+GROUP_CHAT.index(
+  { "messages.mssgId": 1 },
+  {
+    unique: true,
+    sparse: true,
+    partialFilterExpression: {
+      "messages.mssgId": { $exists: true },
+    },
+  }
+);
+
 const GROUP_CHAT_model = mongoose.model("GROUP_CHAT", GROUP_CHAT);
 
 export default GROUP_CHAT_model;

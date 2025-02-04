@@ -1,9 +1,15 @@
 import express, { Router, Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import { ONE_2_ONE_CHAT_model, USER_model } from "../model/modelIndex";
+import {
+  ONE_2_ONE_CHAT_model,
+  USER_model,
+  USER_CONVERSATION_MAPPER_MODEL,
+} from "../model/modelIndex";
 const ChatRouter = Router();
 import AuthorizedRoute from "../utils/AuthorizedRoute";
 import { v4 as uuidv4 } from "uuid";
+import { objectOfRooms, objectOfUsers } from "../api/index";
+
 ChatRouter.get(
   "/contacts",
   AuthorizedRoute,
@@ -76,6 +82,7 @@ ChatRouter.post(
   async (req, res): Promise<void> => {
     try {
       const { participants } = req.body;
+      const userId = req.userId;
       const data = await ONE_2_ONE_CHAT_model.findOne({
         participants,
       });
@@ -91,6 +98,53 @@ ChatRouter.post(
         });
         console.log(`line 92 `, newData);
         let newONE2ONECHAT = await newData.save();
+        // START : ADDING TO  USER_CONVERSATION_MAPPER_MODEL OF EACH PARTICIPANT
+        await USER_CONVERSATION_MAPPER_MODEL.findOneAndUpdate(
+          { userId: participants[0] },
+          { $addToSet: { ONE2ONEchat: _id } },
+          { new: true }
+        );
+        await USER_CONVERSATION_MAPPER_MODEL.findOneAndUpdate(
+          { userId: participants[1] },
+          { $addToSet: { ONE2ONEchat: _id } },
+          { new: true }
+        );
+        // END  : ADDING TO  USER_CONVERSATION_MAPPER_MODEL OF EACH PARTICIPANT
+
+        // START : ADDED NEW ROOM CREATED TO OBJECT_OF_ROOMS
+
+        // ADDING FOR THE USER FIRST
+        // participant[0] --> user
+        const websocketInstanceCorrespondingToUser =
+          objectOfUsers[userId].socket;
+        // before the below statement , no such key existed and array was not the value
+        objectOfRooms[`${roomId}`] = [
+          { WebSocketInstance: websocketInstanceCorrespondingToUser, userId },
+        ];
+
+        // ADDING FOR THE SECOND USER , if he is active/online
+        // participant[1] --> opposite user
+        const websocketInstanceCorrespondingToOppositeUser = objectOfUsers[
+          participants[1]
+        ]
+          ? objectOfUsers[participants[1]].socket
+          : null;
+        if (websocketInstanceCorrespondingToOppositeUser) {
+          // before the below statement , key~roomId existed and also did the array
+          objectOfRooms[`${roomId}`] = [
+            ...objectOfRooms[`${roomId}`],
+            {
+              WebSocketInstance: websocketInstanceCorrespondingToOppositeUser,
+              userId: participants[1],
+            },
+          ];
+        }
+
+        console.log(`object of user`, objectOfUsers);
+        console.log(`object of rooms`, objectOfRooms);
+
+        // END : ADDED NEW ROOM CREATED TO OBJECT_OF_ROOMS
+
         res.status(200).json({ data: newONE2ONECHAT });
         console.log(`94`, newONE2ONECHAT);
         return;

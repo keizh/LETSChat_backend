@@ -1,5 +1,5 @@
 import { USER_CONVERSATION_MAPPER_MODEL } from "../model/modelIndex";
-import { objectOfRooms } from "../api/index";
+import { objectOfRooms, objectOfUsers } from "../api/index";
 import { USER_CONVERSATION_MAPPER_Interface } from "../types";
 
 export const UpdateobjectOfRoomsLogin = async (userId, socket) => {
@@ -91,4 +91,44 @@ export const UpdateobjectOfRoomsLogout = async (userId) => {
       }`
     );
   }
+};
+
+export const SendMessageToAllActiveMembers = async (
+  mssgDOC,
+  roomId,
+  userIdOfSender
+) => {
+  // const userSocketId = objectOfUsers[userIdOfSender].socket;
+  const arrayOfUsersActiveonApplication = objectOfRooms[roomId];
+
+  arrayOfUsersActiveonApplication.forEach((userActiveOnApplication) => {
+    const { userId, WebSocketInstance } = userActiveOnApplication;
+    const isUserActiveInRoomChat = objectOfUsers[userId].IsUserActiveInAnyChat
+      ? roomId == objectOfUsers[userId].ActiveChatRoomId
+      : false;
+
+    // if user is active in chatroom send her message
+    if (isUserActiveInRoomChat) {
+      WebSocketInstance.send(
+        JSON.stringify({
+          type: "Message",
+          payload: {
+            mssgData: mssgDOC,
+            roomId: roomId,
+          },
+        })
+      );
+    } else {
+      // if user is not active in chatroom send her alert
+      // ON FRONTEND CHECK ON WHICH TAB TO INCREASE ALERT COUNT USING ROOMID PROVIDED IN PAYLOAD
+      WebSocketInstance.send(
+        JSON.stringify({
+          type: "Message/ALERT",
+          payload: {
+            roomId: roomId,
+          },
+        })
+      );
+    }
+  });
 };
