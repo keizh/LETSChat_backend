@@ -1,4 +1,10 @@
-import { USER_CONVERSATION_MAPPER_MODEL } from "../model/modelIndex";
+import { WebSocket } from "ws";
+import {
+  GROUP_CHAT_model,
+  ONE_2_ONE_CHAT_model,
+  USER_CONVERSATION_MAPPER_MODEL,
+  USER_model,
+} from "../model/modelIndex";
 import { objectOfRooms, objectOfUsers } from "../api/index";
 import { USER_CONVERSATION_MAPPER_Interface } from "../types";
 
@@ -94,13 +100,61 @@ export const UpdateobjectOfRoomsLogout = async (userId) => {
 };
 
 export const SendMessageToAllActiveMembers = async (
-  mssgDOC,
-  roomId,
-  userIdOfSender
+  mssgDOC: {
+    type: string;
+    payload: string;
+    mssgId: string;
+    senderId: string;
+    senderName: string;
+    uploadTime: number;
+  },
+  roomId: string,
+  userIdOfSender: string,
+  chatId: string
 ) => {
-  // const userSocketId = objectOfUsers[userIdOfSender].socket;
+  const chatDocument = chatId.includes("PERSONAL")
+    ? await ONE_2_ONE_CHAT_model.findById(chatId).lean()
+    : await GROUP_CHAT_model.findById(chatId).lean();
+
+  const messageArrLength = chatDocument ? chatDocument.messages.length : 0;
   const arrayOfUsersActiveonApplication = objectOfRooms[roomId];
 
+  /*
+  ⚠️ The below condition is only true when 
+  1. when you click on contact_tab a ONE_2_ONE doc get created with empty chat , same wont happen when you are creating a group , the purpose field of the the group will gets registered as first message to all participants
+  2. So when getting active chats for active chat tab , only those docs are extracted where in messages.length > 0 , but docs with messages.length = 0  are still part of USER_conversation_mapper
+  3. the below condition will add the document with empty message to client side active history chats why so ?
+     a. we are adding message to document messages array , so it wont be empty anymore
+     b. if it is not empty anymore , we should make sure it is part of active message tab in frontend
+     c. ONLY WHEN OPPOSITE USER IS ACTIVE ( only meant for ONE_2_ONE)
+  */
+  if (chatDocument && messageArrLength == 0 && chatId.includes("PERSONAL")) {
+    const otherParticipant:
+      | {
+          userId: string;
+          WebSocketInstance: WebSocket;
+        }
+      | undefined = arrayOfUsersActiveonApplication.filter(
+      (participant) => participant.userId != userIdOfSender
+    )[0];
+
+    // if the below condidition is true it implies
+    // otherParticipant is indeed active on the application
+    if (otherParticipant) {
+      // IF the other particant is indeed active on the applation , so now just push it to active chat
+      // the below forloop will take care of wheather to send an alert or direct message
+      const otherApplicantData = await USER_model.findById(
+        otherParticipant.userId
+      ).lean();
+
+      otherParticipant.WebSocketInstance.send(
+        JSON.stringify({
+          type: "ACTIVE/CHAT/ACTIVATION",
+          payload: otherApplicantData,
+        })
+      );
+    }
+  }
   arrayOfUsersActiveonApplication.forEach((userActiveOnApplication) => {
     const { userId, WebSocketInstance } = userActiveOnApplication;
     const isUserActiveInRoomChat = objectOfUsers[userId].IsUserActiveInAnyChat

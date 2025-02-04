@@ -3,15 +3,21 @@ import express from "express";
 const cloudinary = require("cloudinary").v2;
 import http from "http";
 import WebSocket, { WebSocketServer } from "ws";
-import { USER_model } from "../model/modelIndex";
+import {
+  GROUP_CHAT_model,
+  ONE_2_ONE_CHAT_model,
+  USER_model,
+} from "../model/modelIndex";
 import UserRouter from "../Routes/UserRoutes";
 import CharRouter from "../Routes/ChatRoutes";
 import db_connect from "../DB/db_connect";
+import { v4 as uuidv4 } from "uuid";
 db_connect();
 import { objectOfUsersInterface, objectOfRoomsInterface } from "../types";
 import {
   UpdateobjectOfRoomsLogin,
   UpdateobjectOfRoomsLogout,
+  SendMessageToAllActiveMembers,
 } from "../utils/ExecutionerFn";
 import cors from "cors";
 import fileRouter from "../Routes/FileRoutes";
@@ -52,9 +58,9 @@ wss.on("connection", (socket) => {
   // convert STRING to JSON.parse provided you were expecting a JS OBJECT
   // PRE-DEFINED EVENTS : message , error , close , open
   console.log(`websocket connection has been established`);
-  socket.on("message", (obj) => {
+  socket.on("message", async (obj) => {
     // parsing the object recieved from client
-    const action = JSON.parse(obj.toString());
+    const action: any = JSON.parse(obj.toString());
 
     switch (action.type) {
       // ⚠️ HANDLE CLIENT LOGIN
@@ -76,6 +82,49 @@ wss.on("connection", (socket) => {
         // console.log(`LINE 53`, objectOfUsers);
         UpdateobjectOfRoomsLogout(userIdLogout);
         break;
+
+      case "SEND/MESSAGE":
+        const {
+          userId: userIdOfSender,
+          userName,
+          roomId,
+          chatId,
+          message,
+        } = action.payload;
+        const mssgDOC = {
+          type: "text",
+          payload: message,
+          mssgId: uuidv4(),
+          senderId: userIdOfSender,
+          senderName: userName,
+          uploadTime: Date.now(),
+        };
+
+        if (chatId.includes("PERSONAL")) {
+          await ONE_2_ONE_CHAT_model.findByIdAndUpdate(
+            chatId,
+            {
+              $addToSet: {
+                messages: mssgDOC,
+              },
+            },
+            { new: true }
+          );
+        } else {
+          await GROUP_CHAT_model.findByIdAndUpdate(
+            chatId,
+            {
+              $addToSet: {
+                messages: mssgDOC,
+              },
+            },
+            { new: true }
+          );
+        }
+
+        SendMessageToAllActiveMembers(mssgDOC, roomId, userIdOfSender, chatId);
+        break;
+
       default:
         console.log(`default action has been hit`);
     }
