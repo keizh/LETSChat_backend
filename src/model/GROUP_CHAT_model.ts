@@ -34,7 +34,7 @@ const GROUP_CHAT = new mongoose.Schema(
           required: true,
         },
         uploadTime: {
-          type: String,
+          type: Number,
           default: Date.now,
         },
       },
@@ -48,6 +48,7 @@ const GROUP_CHAT = new mongoose.Schema(
       default:
         "https://images.stockcake.com/public/5/d/9/5d96090c-be82-4b6e-b8a7-9945b06fc214_large/joyful-friends-together-stockcake.jpg",
     },
+    lastUpdated: Number,
   },
   { timestamps: true, _id: false }
 );

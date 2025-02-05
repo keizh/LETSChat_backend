@@ -6,7 +6,7 @@ import { objectOfRooms, objectOfUsers } from "../api";
 import { ONE_2_ONE_CHAT_model, GROUP_CHAT_model } from "../model/modelIndex";
 import { v4 as uuidv4 } from "uuid";
 import { SendMessageToAllActiveMembers } from "../utils/ExecutionerFn";
-
+import { mssgInterface } from "../types";
 const fileRouter = Router();
 
 const upload = multer({
@@ -35,11 +35,12 @@ const assignType = (Filetype: string): string => {
 fileRouter.post(
   "/",
   AuthorizedRoute,
-  upload.array("fileInput", 10),
+  upload.array("fileInput", 8),
   async (req, res) => {
     try {
       const files = req.files;
       //   chatId ~ _id in GROUP/ONE
+      let messages: any;
       const {
         userId,
         userName,
@@ -50,29 +51,41 @@ fileRouter.post(
 
       const isItGroupChat = chatId.includes("PERSONAL");
 
-      files?.forEach(async (file: any) => {
-        const Filetype = file.type.split("/")[1];
-        let type = assignType(Filetype);
-        const mssgId = uuidv4();
-        const uploaded = await cloudinary.uploader.upload(file.path, {
-          resource_type: "auto",
-        });
-        const mssgDOC = {
-          type,
-          payload: uploaded?.secure_url,
-          mssgId,
-          senderId: userId,
-          senderName: userName,
-          uploadTime: Date.now(),
-        };
+      // settle them , cloudinary can take concurrent uploads
+      const arrayOfAllSettled = await Promise.allSettled(
+        files?.map(async (file: any) => {
+          const Filetype = file.type.split("/")[1];
+          let type = assignType(Filetype);
+          const mssgId = uuidv4();
+          const uploaded = await cloudinary.uploader.upload(file.path, {
+            resource_type: "auto",
+          });
+          const mssgDOC = {
+            type,
+            payload: uploaded?.secure_url,
+            mssgId,
+            senderId: userId,
+            senderName: userName,
+            uploadTime: Date.now(),
+          };
 
+          return mssgDOC;
+        }) ?? []
+      );
+
+      const allFullfilledPromises = arrayOfAllSettled.filter(
+        (ele) => ele.status == "fulfilled"
+      );
+
+      if (allFullfilledPromises.length > 0) {
+        messages = allFullfilledPromises.map((ele) => ele.value);
         // for updating in group
         if (isItGroupChat) {
           await GROUP_CHAT_model.findByIdAndUpdate(
             chatId,
             {
               $addToSet: {
-                messages: mssgDOC,
+                messages: { $each: messages },
               },
             },
             { new: true }
@@ -83,7 +96,7 @@ fileRouter.post(
             chatId,
             {
               $addToSet: {
-                messages: mssgDOC,
+                messages: { $each: messages },
               },
             },
             { new: true }
@@ -91,8 +104,8 @@ fileRouter.post(
         }
 
         // RESPONSIBLE FOR SENDING MESSAGE IF OTHER PARTICIPANTS ARE ACTIVE IN ROOM OR ELSE SEND THEM ALERT
-        SendMessageToAllActiveMembers(mssgDOC, roomId, userId, chatId);
-      });
+        SendMessageToAllActiveMembers(messages, roomId, userId, chatId);
+      }
 
       res.status(200).json({ message: "file uploaded" });
     } catch (err: unknown) {

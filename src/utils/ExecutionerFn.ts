@@ -6,7 +6,7 @@ import {
   USER_model,
 } from "../model/modelIndex";
 import { objectOfRooms, objectOfUsers } from "../api/index";
-import { USER_CONVERSATION_MAPPER_Interface } from "../types";
+import { USER_CONVERSATION_MAPPER_Interface, mssgInterface } from "../types";
 
 export const UpdateobjectOfRoomsLogin = async (userId, socket) => {
   try {
@@ -100,14 +100,7 @@ export const UpdateobjectOfRoomsLogout = async (userId) => {
 };
 
 export const SendMessageToAllActiveMembers = async (
-  mssgDOC: {
-    type: string;
-    payload: string;
-    mssgId: string;
-    senderId: string;
-    senderName: string;
-    uploadTime: number;
-  },
+  mssgDOC: mssgInterface[] | mssgInterface,
   roomId: string,
   userIdOfSender: string,
   chatId: string
@@ -129,14 +122,10 @@ export const SendMessageToAllActiveMembers = async (
      c. ONLY WHEN OPPOSITE USER IS ACTIVE ( only meant for ONE_2_ONE)
   */
   if (chatDocument && messageArrLength == 0 && chatId.includes("PERSONAL")) {
-    const otherParticipant:
-      | {
-          userId: string;
-          WebSocketInstance: WebSocket;
-        }
-      | undefined = arrayOfUsersActiveonApplication.filter(
-      (participant) => participant.userId != userIdOfSender
-    )[0];
+    const otherParticipant: { userId: string; WebSocketInstance: WebSocket } =
+      arrayOfUsersActiveonApplication.filter(
+        (participant) => participant.userId != userIdOfSender
+      )[0];
 
     // if the below condidition is true it implies
     // otherParticipant is indeed active on the application

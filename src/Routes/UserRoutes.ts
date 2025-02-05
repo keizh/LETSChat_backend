@@ -2,8 +2,11 @@ import express, { Router, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { USER_model } from "../model/modelIndex";
 const UserRouter = Router();
-import { USER_CHAT_LAST_ACCESS_TIME_model } from "../model/modelIndex";
-import { USER_CONVERSATION_MAPPER_MODEL } from "../model/modelIndex";
+
+import {
+  USER_CONVERSATION_MAPPER_MODEL,
+  USER_CHAT_LAST_ACCESS_TIME_model,
+} from "../model/modelIndex";
 
 // TEST ON BOTH FRONTEND & BACKEND ~ WORKING
 UserRouter.get("/google/oath", (req: Request, res: Response): void => {

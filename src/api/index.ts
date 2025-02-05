@@ -6,6 +6,7 @@ import WebSocket, { WebSocketServer } from "ws";
 import {
   GROUP_CHAT_model,
   ONE_2_ONE_CHAT_model,
+  USER_CHAT_LAST_ACCESS_TIME_model,
   USER_model,
 } from "../model/modelIndex";
 import UserRouter from "../Routes/UserRoutes";
@@ -13,7 +14,11 @@ import CharRouter from "../Routes/ChatRoutes";
 import db_connect from "../DB/db_connect";
 import { v4 as uuidv4 } from "uuid";
 db_connect();
-import { objectOfUsersInterface, objectOfRoomsInterface } from "../types";
+import {
+  objectOfUsersInterface,
+  objectOfRoomsInterface,
+  mssgInterface,
+} from "../types";
 import {
   UpdateobjectOfRoomsLogin,
   UpdateobjectOfRoomsLogout,
@@ -81,12 +86,29 @@ wss.on("connection", (socket) => {
       // ⚠️ HANDLE CLIENT LOGOUT
       case "LOGOUT":
         const { userId: userIdLogout } = action.payload;
+        // 🌟 START: RESPONSIBLE FOR UPDATING LAST ACCESS TIME , IF USER LOGOUTS EITHER VIA THE LOGOUT  BUTTON OR CLOSING BROWSER WHILE CHATBOX IS STILL OPEN
+        if (objectOfUsers[userIdLogout].ActiveChatRoomId) {
+          await USER_CHAT_LAST_ACCESS_TIME_model.findOneAndUpdate(
+            {
+              userId: userIdLogout,
+              "lastAccessTime.roomId":
+                objectOfUsers[userIdLogout].ActiveChatRoomId,
+            },
+            { $set: { "lastAccessTime.$.lastAccessMoment": Date.now() } },
+            { new: true }
+          );
+        }
+        // ❌ END: RESPONSIBLE FOR UPDATING LAST ACCESS TIME , IF USER LOGOUTS EITHER VIA THE BUTTON OR CLOSING BROWSER WHILE CHATBOX IS TILL OPEN
+
+        // 🌟 START : DELETE userID from objectOfUsers
         delete objectOfUsers[userIdLogout];
+        // ❌ END : DELETE userID from objectOfUsers
+
         // console.log(`LINE 53`, objectOfUsers);
         // async job inside of the below function so the reflection in objectOfRooms will take time
         UpdateobjectOfRoomsLogout(userIdLogout);
-        console.log(`objectOfUser at logout`, objectOfUsers);
-        console.log(`objectOfRoom at logout`, objectOfRooms);
+        // console.log(`objectOfUser at logout`, objectOfUsers);
+        // console.log(`objectOfRoom at logout`, objectOfRooms);
         break;
 
       case "SEND/MESSAGE":
@@ -97,7 +119,7 @@ wss.on("connection", (socket) => {
           chatId,
           message,
         } = action.payload;
-        const mssgDOC = {
+        const mssgDOC: mssgInterface = {
           type: "text",
           payload: message,
           mssgId: uuidv4(),
@@ -128,14 +150,33 @@ wss.on("connection", (socket) => {
           );
         }
 
-        SendMessageToAllActiveMembers(mssgDOC, roomId, userIdOfSender, chatId);
+        SendMessageToAllActiveMembers(
+          [mssgDOC],
+          roomId,
+          userIdOfSender,
+          chatId
+        );
         break;
 
       case "CLOSE/CHAT":
         const { userId: userIdToSetRoomIdToNull } = action.payload;
+        // last access time to room
+        // 🌟 START: RESPONSIBLE FOR UPDATING LAST ACCESS TIME , WHEN CLOSING A CHAT
+        await USER_CHAT_LAST_ACCESS_TIME_model.findOneAndUpdate(
+          {
+            userId: userIdToSetRoomIdToNull,
+            "lastAccessTime.roomId":
+              objectOfUsers[userIdToSetRoomIdToNull].ActiveChatRoomId,
+          },
+          { $set: { "lastAccessTime.$.lastAccessMoment": Date.now() } },
+          { new: true }
+        );
+        // ❌ END : RESPONSIBLE FOR UPDATING LAST ACCESS TIME , WHEN CLOSING A CHAT
+        // 🌟 START: RESPONSIBLE FOR UPDATING OBJECTOFUSER
         objectOfUsers[userIdToSetRoomIdToNull].ActiveChatRoomId = null;
-        console.log(`objectOfUser at closing chat`, objectOfUsers);
-        console.log(`objectOfRoom at closing chat`, objectOfRooms);
+        // ❌ END : RESPONSIBLE FOR UPDATING OBJECTOFUSER
+        // console.log(`objectOfUser at closing chat`, objectOfUsers);
+        // console.log(`objectOfRoom at closing chat`, objectOfRooms);
         break;
 
       default:

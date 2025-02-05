@@ -28,7 +28,7 @@ const ONE_2_ONE_CHAT_Schema = new mongoose.Schema(
           required: true,
         },
         uploadTime: {
-          type: String,
+          type: Number,
           default: Date.now,
         },
         senderId: String,
@@ -39,6 +39,7 @@ const ONE_2_ONE_CHAT_Schema = new mongoose.Schema(
       required: true,
       type: String,
     },
+    lastUpdated: Number,
   },
   { timestamps: true, _id: false }
 );

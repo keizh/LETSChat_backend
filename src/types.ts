@@ -1,5 +1,6 @@
 import { WebSocket } from "ws";
 import ONE_2_ONE_CHAT_model from "./model/ONE_2_ONE_CHAT_model";
+import { Document, HydratedDocument } from "mongoose";
 
 export interface objectOfUsersInterface {
   [userId: string]: {
@@ -16,12 +17,30 @@ export interface objectOfRoomsInterface {
   }[];
 }
 
-interface ONE2ONE_Interface {
-  roomId: string;
+export interface mssgInterface {
+  type: "text" | "image" | "audio" | "video" | "pdf";
+  payload: string;
+  mssgId: string;
+  uploadTime: number;
+  senderId: string;
+  senderName: string;
 }
 
-interface GROUP_Interface {
+interface ONE2ONE_Interface {
+  _id: string;
   roomId: string;
+  participants: string[];
+  messages: mssgInterface[];
+  lastUpdated: number;
+}
+interface GROUP_Interface {
+  _id: string;
+  roomId: string;
+  participants: string[];
+  messages: mssgInterface[];
+  groupName: string;
+  profileURL: string;
+  lastUpdated: number;
 }
 
 export interface USER_CONVERSATION_MAPPER_Int {
@@ -32,3 +51,16 @@ export interface USER_CONVERSATION_MAPPER_Int {
 
 export type USER_CONVERSATION_MAPPER_Interface =
   USER_CONVERSATION_MAPPER_Int | null;
+
+export interface USER_CHAT_LAST_ACCESS_TIME_INTERFACE {
+  userId: string;
+  lastAccessTime: { roomId: string; lastAccessMoment: number }[];
+}
+
+export interface combinedActiveChat {
+  chatId: string;
+  chatName: string;
+  roomId: string;
+  lastUpdated: number;
+  profileURL: string;
+}
