@@ -32,6 +32,8 @@ interface ONE2ONE_Interface {
   participants: string[];
   messages: mssgInterface[];
   lastUpdated: number;
+  lastMessageSender: String;
+  lastMessageTime: Number;
 }
 interface GROUP_Interface {
   _id: string;
@@ -41,6 +43,8 @@ interface GROUP_Interface {
   groupName: string;
   profileURL: string;
   lastUpdated: number;
+  lastMessageSender: String;
+  lastMessageTime: Number;
 }
 
 export interface USER_CONVERSATION_MAPPER_Int {
@@ -58,9 +62,13 @@ export interface USER_CHAT_LAST_ACCESS_TIME_INTERFACE {
 }
 
 export interface combinedActiveChat {
+  // in case of personal chat chatId is opposite user's userId
+  // in case of group chat chatId is id of chat document
   chatId: string;
   chatName: string;
   roomId: string;
   lastUpdated: number;
   profileURL: string;
+  lastMessageSender: String;
+  lastMessageTime: Number;
 }

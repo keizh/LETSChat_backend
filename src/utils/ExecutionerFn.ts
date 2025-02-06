@@ -100,18 +100,23 @@ export const UpdateobjectOfRoomsLogout = async (userId) => {
 };
 
 export const SendMessageToAllActiveMembers = async (
-  mssgDOC: mssgInterface[] | mssgInterface,
+  mssgDOC: mssgInterface[],
   roomId: string,
   userIdOfSender: string,
   chatId: string
 ) => {
+  // console.log(`line 108`);
   const chatDocument = chatId.includes("PERSONAL")
     ? await ONE_2_ONE_CHAT_model.findById(chatId).lean()
     : await GROUP_CHAT_model.findById(chatId).lean();
 
   const messageArrLength = chatDocument ? chatDocument.messages.length : 0;
+  // all the user who are active in the room
   const arrayOfUsersActiveonApplication = objectOfRooms[roomId];
-
+  console.log(
+    "arrayOfUsersActiveonApplication",
+    arrayOfUsersActiveonApplication
+  );
   /*
   ⚠️ The below condition is only true when 
   1. when you click on contact_tab a ONE_2_ONE doc get created with empty chat , same wont happen when you are creating a group , the purpose field of the the group will gets registered as first message to all participants
@@ -144,17 +149,26 @@ export const SendMessageToAllActiveMembers = async (
       );
     }
   }
+  // SEND MESSAGE TO ALL ACTIVE USERS
   arrayOfUsersActiveonApplication.forEach((userActiveOnApplication) => {
+    console.log(`line 154`, userActiveOnApplication);
+    // userId & WebSocketInstance of user active on application
     const { userId, WebSocketInstance } = userActiveOnApplication;
+    // checking if user who is active on application , is he active in same chat room
     const isUserActiveInRoomChat = objectOfUsers[userId].IsUserActiveInAnyChat
       ? roomId == objectOfUsers[userId].ActiveChatRoomId
       : false;
 
+    console.log(`162 objectOfUsers`, objectOfUsers);
+    console.log(`162`, objectOfUsers[userId].IsUserActiveInAnyChat); // expected : true
+    console.log(`163`, roomId == objectOfUsers[userId].ActiveChatRoomId); // expected : true
+    console.log(`164`, isUserActiveInRoomChat); // true
     // if user is active in chatroom send her message
     if (isUserActiveInRoomChat) {
+      // console.log(`line 159`);
       WebSocketInstance.send(
         JSON.stringify({
-          type: "Message",
+          type: "RECIEVE/MESSAGE",
           payload: {
             mssgData: mssgDOC,
             roomId: roomId,
@@ -164,6 +178,7 @@ export const SendMessageToAllActiveMembers = async (
     } else {
       // if user is not active in chatroom send her alert
       // ON FRONTEND CHECK ON WHICH TAB TO INCREASE ALERT COUNT USING ROOMID PROVIDED IN PAYLOAD
+      console.log(`line 172 sending  Message/ALERT`);
       WebSocketInstance.send(
         JSON.stringify({
           type: "Message/ALERT",

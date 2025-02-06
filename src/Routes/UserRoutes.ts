@@ -7,6 +7,7 @@ import {
   USER_CONVERSATION_MAPPER_MODEL,
   USER_CHAT_LAST_ACCESS_TIME_model,
 } from "../model/modelIndex";
+import AuthorizedRoute from "../utils/AuthorizedRoute";
 
 // TEST ON BOTH FRONTEND & BACKEND ~ WORKING
 UserRouter.get("/google/oath", (req: Request, res: Response): void => {
@@ -133,5 +134,17 @@ UserRouter.get(
     }
   }
 );
+
+UserRouter.get("/LastActive", AuthorizedRoute, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const data = await USER_CHAT_LAST_ACCESS_TIME_model.findById(userId)
+      .select("lastAccessTime")
+      .lean();
+    res.status(200).json({ data });
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching last access time" });
+  }
+});
 
 export default UserRouter;

@@ -109,6 +109,7 @@ ChatRouter.post(
       }).lean();
 
       if (data) {
+        console.log(`line 112`, objectOfUsers);
         const { roomId, _id: chatId } = data;
         // RESPONSIBLE FOR MARKING LAST LOGIN TIME
         await USER_CHAT_LAST_ACCESS_TIME_model.findOneAndUpdate(
@@ -117,6 +118,7 @@ ChatRouter.post(
           { new: true }
         );
         // START :RESPONSIBLE FOR MARKING ACTIVE ROOM for the user
+        objectOfUsers[userId].IsUserActiveInAnyChat = true;
         objectOfUsers[userId].ActiveChatRoomId = roomId;
         // END :RESPONSIBLE FOR MARKING ACTIVE ROOM for the user
       }
@@ -134,6 +136,7 @@ ChatRouter.post(
           _id,
         });
         // START :RESPONSIBLE FOR MARKING ACTIVE ROOM for the user
+        objectOfUsers[userId].IsUserActiveInAnyChat = true;
         objectOfUsers[userId].ActiveChatRoomId = roomId;
         // END :RESPONSIBLE FOR MARKING ACTIVE ROOM for the user
 
@@ -246,7 +249,7 @@ ChatRouter.get(
       // with promise.all i will get array of resolved promise
       // Promise<combinedCHat>[] -->  combinedCHat[]
       // worst case scenario : one2oneActiveChats_MESSAGESgreaterTHAN_0 ~ undefined
-      const ONE2ONE_ONLYfieldsNEEDED = await Promise.all(
+      const ONE2ONE_ONLYfieldsNEEDED = await Promise.allSettled(
         one2oneActiveChats_MESSAGESgreaterTHAN_0?.map(async (ele) => {
           // userId of other participant in one2one Chat
           const userIdOfOtherParticipant = ele?.participants?.filter(
@@ -255,17 +258,24 @@ ChatRouter.get(
 
           const otherUserData = await USER_model.findById(
             userIdOfOtherParticipant
-          ).select("name profileURL");
+          ).select("name profileURL _id");
 
           return {
-            chatId: ele?._id || "",
+            chatId: otherUserData?._id || "",
             chatName: otherUserData?.name || "",
             roomId: ele.roomId,
             lastUpdated: ele.lastUpdated,
             profileURL: otherUserData?.profileURL || "",
+            lastMessageSender: ele?.lastMessageSender || "",
+            lastMessageTime: ele?.lastMessageTime || "",
           };
         }) ?? []
       );
+
+      // filtering to have only fullfilled
+      const filteredONE2ONE_ONLYfieldsNEEDED = ONE2ONE_ONLYfieldsNEEDED.filter(
+        (ele) => ele.status == "fulfilled"
+      ).map((ele) => ele.value);
 
       const GROUP_ONLYfieldsNEEDED = activeChats?.GROUPchat?.map(
         (ele): combinedActiveChat => ({
@@ -274,11 +284,15 @@ ChatRouter.get(
           roomId: ele.roomId,
           lastUpdated: ele.lastUpdated,
           profileURL: ele.profileURL,
+          lastMessageSender: ele?.lastMessageSender || "",
+          lastMessageTime: ele?.lastMessageTime || "",
         })
       );
 
-      const on2oneArrayToCombine = Array.isArray(ONE2ONE_ONLYfieldsNEEDED)
-        ? ONE2ONE_ONLYfieldsNEEDED
+      const on2oneArrayToCombine = Array.isArray(
+        filteredONE2ONE_ONLYfieldsNEEDED
+      )
+        ? filteredONE2ONE_ONLYfieldsNEEDED
         : [];
       const groupArrayToCombine = Array.isArray(GROUP_ONLYfieldsNEEDED)
         ? GROUP_ONLYfieldsNEEDED
@@ -289,11 +303,13 @@ ChatRouter.get(
         ...groupArrayToCombine,
       ];
 
-      combinedChats.sort((a, b): any => {
-        const aDate: number = a?.lastUpdated || 0;
-        const bDate: number = b?.lastUpdated || 0;
-        return aDate - bDate;
-      });
+      if (combinedChats.length > 0) {
+        combinedChats.sort((a, b): any => {
+          const aDate: number = a?.lastUpdated || 0;
+          const bDate: number = b?.lastUpdated || 0;
+          return aDate - bDate;
+        });
+      }
 
       res
         .status(200)

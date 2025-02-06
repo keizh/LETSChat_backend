@@ -33,6 +33,10 @@ cloudinary.config({
   api_secret: process.env.api_secret,
 });
 
+console.log("cloud_name", process.env.cloud_name);
+console.log("api_key", process.env.api_key);
+console.log("api_secret", process.env.api_secret);
+
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
@@ -65,122 +69,137 @@ wss.on("connection", (socket) => {
   console.log(`websocket connection has been established`);
   socket.on("message", async (obj) => {
     // parsing the object recieved from client
-    const action: any = JSON.parse(obj.toString());
+    try {
+      const action: any = JSON.parse(obj.toString());
 
-    switch (action.type) {
-      // ⚠️ HANDLE CLIENT LOGIN
-      case "LOGIN":
-        const { userId: userIdLogin } = action.payload;
-        objectOfUsers[userIdLogin] = {
-          IsUserActiveInAnyChat: false,
-          ActiveChatRoomId: null,
-          socket: socket,
-        };
-        // console.log(`LINE 46`, objectOfUsers);
-        // async job inside of the below function so the reflection in objectOfRooms will take time
-        UpdateobjectOfRoomsLogin(userIdLogin, socket);
-        console.log(`objectOfUser at login`, objectOfUsers);
-        console.log(`objectOfRoom at login`, objectOfRooms);
-        break;
+      switch (action.type) {
+        // ⚠️ HANDLE CLIENT LOGIN
+        case "LOGIN":
+          const { userId: userIdLogin } = action.payload;
+          objectOfUsers[userIdLogin] = {
+            IsUserActiveInAnyChat: false,
+            ActiveChatRoomId: null,
+            socket: socket,
+          };
+          // console.log(`LINE 46`, objectOfUsers);
+          // async job inside of the below function so the reflection in objectOfRooms will take time
+          UpdateobjectOfRoomsLogin(userIdLogin, socket);
+          console.log(`objectOfUser at login`, objectOfUsers);
+          console.log(`objectOfRoom at login`, objectOfRooms);
+          break;
 
-      // ⚠️ HANDLE CLIENT LOGOUT
-      case "LOGOUT":
-        const { userId: userIdLogout } = action.payload;
-        // 🌟 START: RESPONSIBLE FOR UPDATING LAST ACCESS TIME , IF USER LOGOUTS EITHER VIA THE LOGOUT  BUTTON OR CLOSING BROWSER WHILE CHATBOX IS STILL OPEN
-        if (objectOfUsers[userIdLogout].ActiveChatRoomId) {
+        // ⚠️ HANDLE CLIENT LOGOUT
+        case "LOGOUT":
+          const { userId: userIdLogout } = action.payload;
+          // 🌟 START: RESPONSIBLE FOR UPDATING LAST ACCESS TIME , IF USER LOGOUTS EITHER VIA THE LOGOUT  BUTTON OR CLOSING BROWSER WHILE CHATBOX IS STILL OPEN
+          if (objectOfUsers[userIdLogout].ActiveChatRoomId) {
+            await USER_CHAT_LAST_ACCESS_TIME_model.findOneAndUpdate(
+              {
+                userId: userIdLogout,
+                "lastAccessTime.roomId":
+                  objectOfUsers[userIdLogout].ActiveChatRoomId,
+              },
+              { $set: { "lastAccessTime.$.lastAccessMoment": Date.now() } },
+              { new: true }
+            );
+          }
+          // ❌ END: RESPONSIBLE FOR UPDATING LAST ACCESS TIME , IF USER LOGOUTS EITHER VIA THE BUTTON OR CLOSING BROWSER WHILE CHATBOX IS TILL OPEN
+
+          // 🌟 START : DELETE userID from objectOfUsers
+          delete objectOfUsers[userIdLogout];
+          // ❌ END : DELETE userID from objectOfUsers
+
+          // console.log(`LINE 53`, objectOfUsers);
+          // async job inside of the below function so the reflection in objectOfRooms will take time
+          UpdateobjectOfRoomsLogout(userIdLogout);
+          // console.log(`objectOfUser at logout`, objectOfUsers);
+          // console.log(`objectOfRoom at logout`, objectOfRooms);
+          break;
+
+        case "SEND/MESSAGE":
+          console.log(`personal message sent`);
+          const {
+            userId: userIdOfSender,
+            userName,
+            roomId,
+            chatId,
+            message,
+          } = action.payload;
+          const mssgDOC: mssgInterface = {
+            type: "text",
+            payload: message,
+            mssgId: uuidv4(),
+            senderId: userIdOfSender,
+            senderName: userName,
+            uploadTime: Date.now(),
+          };
+
+          if (chatId.includes("PERSONAL")) {
+            await ONE_2_ONE_CHAT_model.findByIdAndUpdate(
+              chatId,
+              {
+                $addToSet: {
+                  messages: mssgDOC,
+                },
+                $set: {
+                  lastUpdated: Date.now(),
+                  lastMessageSender: userIdOfSender,
+                  lastMessageTime: Date.now(),
+                },
+              },
+              { new: true }
+            );
+          } else {
+            await GROUP_CHAT_model.findByIdAndUpdate(
+              chatId,
+              {
+                $addToSet: {
+                  messages: mssgDOC,
+                },
+                $set: {
+                  lastUpdated: Date.now(),
+                  lastMessageSender: userIdOfSender,
+                  lastMessageTime: Date.now(),
+                },
+              },
+              { new: true }
+            );
+          }
+
+          SendMessageToAllActiveMembers(
+            [mssgDOC],
+            roomId,
+            userIdOfSender,
+            chatId
+          );
+          break;
+
+        case "CLOSE/CHAT":
+          const { userId: userIdToSetRoomIdToNull } = action.payload;
+          // last access time to room
+          // 🌟 START: RESPONSIBLE FOR UPDATING LAST ACCESS TIME , WHEN CLOSING A CHAT
           await USER_CHAT_LAST_ACCESS_TIME_model.findOneAndUpdate(
             {
-              userId: userIdLogout,
+              userId: userIdToSetRoomIdToNull,
               "lastAccessTime.roomId":
-                objectOfUsers[userIdLogout].ActiveChatRoomId,
+                objectOfUsers[userIdToSetRoomIdToNull].ActiveChatRoomId,
             },
             { $set: { "lastAccessTime.$.lastAccessMoment": Date.now() } },
             { new: true }
           );
-        }
-        // ❌ END: RESPONSIBLE FOR UPDATING LAST ACCESS TIME , IF USER LOGOUTS EITHER VIA THE BUTTON OR CLOSING BROWSER WHILE CHATBOX IS TILL OPEN
+          // ❌ END : RESPONSIBLE FOR UPDATING LAST ACCESS TIME , WHEN CLOSING A CHAT
+          // 🌟 START: RESPONSIBLE FOR UPDATING OBJECTOFUSER
+          objectOfUsers[userIdToSetRoomIdToNull].ActiveChatRoomId = null;
+          // ❌ END : RESPONSIBLE FOR UPDATING OBJECTOFUSER
+          // console.log(`objectOfUser at closing chat`, objectOfUsers);
+          // console.log(`objectOfRoom at closing chat`, objectOfRooms);
+          break;
 
-        // 🌟 START : DELETE userID from objectOfUsers
-        delete objectOfUsers[userIdLogout];
-        // ❌ END : DELETE userID from objectOfUsers
-
-        // console.log(`LINE 53`, objectOfUsers);
-        // async job inside of the below function so the reflection in objectOfRooms will take time
-        UpdateobjectOfRoomsLogout(userIdLogout);
-        // console.log(`objectOfUser at logout`, objectOfUsers);
-        // console.log(`objectOfRoom at logout`, objectOfRooms);
-        break;
-
-      case "SEND/MESSAGE":
-        const {
-          userId: userIdOfSender,
-          userName,
-          roomId,
-          chatId,
-          message,
-        } = action.payload;
-        const mssgDOC: mssgInterface = {
-          type: "text",
-          payload: message,
-          mssgId: uuidv4(),
-          senderId: userIdOfSender,
-          senderName: userName,
-          uploadTime: Date.now(),
-        };
-
-        if (chatId.includes("PERSONAL")) {
-          await ONE_2_ONE_CHAT_model.findByIdAndUpdate(
-            chatId,
-            {
-              $addToSet: {
-                messages: mssgDOC,
-              },
-            },
-            { new: true }
-          );
-        } else {
-          await GROUP_CHAT_model.findByIdAndUpdate(
-            chatId,
-            {
-              $addToSet: {
-                messages: mssgDOC,
-              },
-            },
-            { new: true }
-          );
-        }
-
-        SendMessageToAllActiveMembers(
-          [mssgDOC],
-          roomId,
-          userIdOfSender,
-          chatId
-        );
-        break;
-
-      case "CLOSE/CHAT":
-        const { userId: userIdToSetRoomIdToNull } = action.payload;
-        // last access time to room
-        // 🌟 START: RESPONSIBLE FOR UPDATING LAST ACCESS TIME , WHEN CLOSING A CHAT
-        await USER_CHAT_LAST_ACCESS_TIME_model.findOneAndUpdate(
-          {
-            userId: userIdToSetRoomIdToNull,
-            "lastAccessTime.roomId":
-              objectOfUsers[userIdToSetRoomIdToNull].ActiveChatRoomId,
-          },
-          { $set: { "lastAccessTime.$.lastAccessMoment": Date.now() } },
-          { new: true }
-        );
-        // ❌ END : RESPONSIBLE FOR UPDATING LAST ACCESS TIME , WHEN CLOSING A CHAT
-        // 🌟 START: RESPONSIBLE FOR UPDATING OBJECTOFUSER
-        objectOfUsers[userIdToSetRoomIdToNull].ActiveChatRoomId = null;
-        // ❌ END : RESPONSIBLE FOR UPDATING OBJECTOFUSER
-        // console.log(`objectOfUser at closing chat`, objectOfUsers);
-        // console.log(`objectOfRoom at closing chat`, objectOfRooms);
-        break;
-
-      default:
-        console.log(`default action has been hit`);
+        default:
+          console.log(`default action has been hit`);
+      }
+    } catch (err: unknown) {
+      console.error(`Error while parsing file`);
     }
   });
 

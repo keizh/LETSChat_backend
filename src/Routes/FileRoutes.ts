@@ -39,6 +39,9 @@ fileRouter.post(
   async (req, res) => {
     try {
       const files = req.files;
+
+      console.log(`files =>`, files);
+      console.log(`---------------------->`);
       //   chatId ~ _id in GROUP/ONE
       let messages: any;
       const {
@@ -48,18 +51,35 @@ fileRouter.post(
         chatId,
       }: { userId: string; roomId: string; chatId: string; userName: string } =
         req.body;
+      console.log(`userId =>`, userId);
+      console.log(`userName =>`, userName);
+      console.log(`roomId =>`, roomId);
+      console.log(`chatId =>`, chatId);
+      console.log(`---------------------->`);
 
       const isItGroupChat = chatId.includes("PERSONAL");
 
-      // settle them , cloudinary can take concurrent uploads
+      // // settle them , cloudinary can take concurrent uploads
       const arrayOfAllSettled = await Promise.allSettled(
         files?.map(async (file: any) => {
-          const Filetype = file.type.split("/")[1];
+          const Filetype = file.mimetype.split("/")[1];
           let type = assignType(Filetype);
           const mssgId = uuidv4();
+          //
+          const timestamp = Math.round(Date.now() / 1000);
+          const signature = cloudinary.utils.api_sign_request(
+            { timestamp },
+            cloudinary.config().api_secret
+          );
+          console.log(`file path`, file.path);
           const uploaded = await cloudinary.uploader.upload(file.path, {
             resource_type: "auto",
+            api_key: cloudinary.config().api_key,
+            signature,
+            timestamp,
+            cloud_name: cloudinary.config().cloud_name,
           });
+
           const mssgDOC = {
             type,
             payload: uploaded?.secure_url,
@@ -73,12 +93,18 @@ fileRouter.post(
         }) ?? []
       );
 
+      console.log(`arrayOfAllSettled`, arrayOfAllSettled);
+      console.log(`---------------------->`);
       const allFullfilledPromises = arrayOfAllSettled.filter(
         (ele) => ele.status == "fulfilled"
       );
 
+      console.log(`All fulfilled promises =>`, allFullfilledPromises);
+      console.log(`---------------------->`);
       if (allFullfilledPromises.length > 0) {
         messages = allFullfilledPromises.map((ele) => ele.value);
+        console.log(`messages from all fulfilled promises =>`, messages);
+        console.log(`---------------------->`);
         // for updating in group
         if (isItGroupChat) {
           await GROUP_CHAT_model.findByIdAndUpdate(
