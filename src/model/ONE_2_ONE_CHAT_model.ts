@@ -39,9 +39,18 @@ const ONE_2_ONE_CHAT_Schema = new mongoose.Schema(
       required: true,
       type: String,
     },
-    lastUpdated: Number,
-    lastMessageSender: String,
-    lastMessageTime: Number,
+    lastUpdated: {
+      type: Number,
+      default: Date.now,
+    },
+    lastMessageSender: {
+      type: String,
+      default: "",
+    },
+    lastMessageTime: {
+      type: Number,
+      default: Date.now,
+    },
   },
   { timestamps: true, _id: false }
 );

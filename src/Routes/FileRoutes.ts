@@ -40,8 +40,8 @@ fileRouter.post(
     try {
       const files = req.files;
 
-      console.log(`files =>`, files);
-      console.log(`---------------------->`);
+      // console.log(`files =>`, files);
+      // console.log(`---------------------->`);
       //   chatId ~ _id in GROUP/ONE
       let messages: any;
       const {
@@ -51,11 +51,11 @@ fileRouter.post(
         chatId,
       }: { userId: string; roomId: string; chatId: string; userName: string } =
         req.body;
-      console.log(`userId =>`, userId);
-      console.log(`userName =>`, userName);
-      console.log(`roomId =>`, roomId);
-      console.log(`chatId =>`, chatId);
-      console.log(`---------------------->`);
+      // console.log(`userId =>`, userId);
+      // console.log(`userName =>`, userName);
+      // console.log(`roomId =>`, roomId);
+      // console.log(`chatId =>`, chatId);
+      // console.log(`---------------------->`);
 
       const isItGroupChat = chatId.includes("PERSONAL");
 
@@ -71,7 +71,7 @@ fileRouter.post(
             { timestamp },
             cloudinary.config().api_secret
           );
-          console.log(`file path`, file.path);
+          // console.log(`file path`, file.path);
           const uploaded = await cloudinary.uploader.upload(file.path, {
             resource_type: "auto",
             api_key: cloudinary.config().api_key,
@@ -93,25 +93,26 @@ fileRouter.post(
         }) ?? []
       );
 
-      console.log(`arrayOfAllSettled`, arrayOfAllSettled);
-      console.log(`---------------------->`);
+      // console.log(`arrayOfAllSettled`, arrayOfAllSettled);
+      // console.log(`---------------------->`);
       const allFullfilledPromises = arrayOfAllSettled.filter(
         (ele) => ele.status == "fulfilled"
       );
 
-      console.log(`All fulfilled promises =>`, allFullfilledPromises);
-      console.log(`---------------------->`);
+      // console.log(`All fulfilled promises =>`, allFullfilledPromises);
+      // console.log(`---------------------->`);
       if (allFullfilledPromises.length > 0) {
         messages = allFullfilledPromises.map((ele) => ele.value);
-        console.log(`messages from all fulfilled promises =>`, messages);
-        console.log(`---------------------->`);
+        // console.log(`messages from all fulfilled promises =>`, messages);
+        // console.log(`---------------------->`);
         // for updating in group
+        const reverse_messages = messages.reverse();
         if (isItGroupChat) {
           await GROUP_CHAT_model.findByIdAndUpdate(
             chatId,
             {
-              $addToSet: {
-                messages: { $each: messages },
+              $push: {
+                messages: { $each: reverse_messages, $position: 0 },
               },
             },
             { new: true }
@@ -121,8 +122,8 @@ fileRouter.post(
           await ONE_2_ONE_CHAT_model.findByIdAndUpdate(
             chatId,
             {
-              $addToSet: {
-                messages: { $each: messages },
+              $push: {
+                messages: { $each: reverse_messages, $position: 0 },
               },
             },
             { new: true }
@@ -137,6 +138,31 @@ fileRouter.post(
     } catch (err: unknown) {
       const mss = err instanceof Error ? err.message : "";
       res.status(500).json({ message: "Failed to Upload Files" });
+    }
+  }
+);
+
+fileRouter.post(
+  "/updateProfileURL",
+  AuthorizedRoute,
+  upload.single("profileImage"),
+  async (req, res) => {
+    const file = req.file;
+    console.log(file);
+    try {
+      if (file) {
+        const uploaded = await cloudinary.uploader.upload(file.path, {
+          resource_type: "auto",
+        });
+        res.status(200).json({
+          message: "ProfileImage was successfully updated",
+          data: uploaded,
+        });
+        return;
+      }
+      res.status(404).json({ message: "Failed to Provide Image" });
+    } catch (err) {
+      res.status(500).json({ message: "Failed to update Profile Image" });
     }
   }
 );

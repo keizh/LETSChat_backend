@@ -39,9 +39,7 @@ ChatRouter.get(
     const userId = req.userId;
     // console.log(userId);
     try {
-      let AllUsers = await USER_model.find({
-        _id: { $nin: [userId] },
-      }).lean();
+      let AllUsers = await USER_model.find().lean();
       totalDocuments = AllUsers.length;
       totalPages = Math.ceil(totalDocuments / limit);
       hasMore = totalPages > curPage;
@@ -55,13 +53,14 @@ ChatRouter.get(
       //   nextPage,
       //   hasMore,
       // });
+      // console.log(data);
       res.status(200).json({
         totalPages,
         totalDocuments,
         curPage,
         nextPage,
         hasMore,
-        data,
+        data: data.filter((ele) => ele._id != userId),
       });
     } catch (err: unknown) {
       res.status(500).json({ message: "Server Error : fetching contacts" });
@@ -102,19 +101,24 @@ ChatRouter.post(
   AuthorizedRoute,
   async (req, res): Promise<void> => {
     try {
-      const { participants, userIdOfClient, userIdOfOppositeUser } = req.body;
+      const {
+        participants,
+        userIdOfClient,
+        userIdOfOppositeUser,
+        lastAccessMoment,
+      } = req.body;
       const userId = req.userId as string;
       const data = await ONE_2_ONE_CHAT_model.findOne({
         participants: participants.sort(),
       }).lean();
 
       if (data) {
-        console.log(`line 112`, objectOfUsers);
+        // console.log(`line 112`, objectOfUsers);
         const { roomId, _id: chatId } = data;
         // RESPONSIBLE FOR MARKING LAST LOGIN TIME
         await USER_CHAT_LAST_ACCESS_TIME_model.findOneAndUpdate(
           { userId, "lastAccessTime.roomId": roomId },
-          { $set: { "lastAccessTime.$.lastAccessMoment": Date.now() } },
+          { $set: { "lastAccessTime.$.lastAccessMoment": lastAccessMoment } },
           { new: true }
         );
         // START :RESPONSIBLE FOR MARKING ACTIVE ROOM for the user
@@ -123,7 +127,7 @@ ChatRouter.post(
         // END :RESPONSIBLE FOR MARKING ACTIVE ROOM for the user
       }
 
-      console.log(`new document , `, data);
+      // console.log(`new document , `, data);
       // console.log(`82`, data);
       // if data does not exist, it means the ONE2ONE HAS YET TO CREATED
       if (!data) {
@@ -183,14 +187,14 @@ ChatRouter.post(
           ];
         }
 
-        console.log(
-          `object of user after creating doc with 0 messages`,
-          objectOfUsers
-        );
-        console.log(
-          `object of rooms after creating doc with 0 messages`,
-          objectOfRooms
-        );
+        // console.log(
+        //   `object of user after creating doc with 0 messages`,
+        //   objectOfUsers
+        // );
+        // console.log(
+        //   `object of rooms after creating doc with 0 messages`,
+        //   objectOfRooms
+        // );
         // END : ADDED NEW ROOM CREATED TO OBJECT_OF_ROOMS
 
         // START : SETTING ACTIVE_ROOMId_of_user to this roomId , becuase on frontend this room will be active one for the moment
@@ -198,11 +202,24 @@ ChatRouter.post(
         // END : SETTING ACTIVE_ROOMId_of_user to this roomId , becuase on frontend this room will be active one for the moment
 
         // START : ADDING NEW roomId & lastAccessTime TO LAST_ACCESS_USER_TIME_MODEL
+        // console.log(userIdOfClient, `USER_CHAT_LAST_ACCESS_TIME_model updated`);
         await USER_CHAT_LAST_ACCESS_TIME_model.findOneAndUpdate(
-          { userId },
+          { userId: userIdOfClient },
           {
             $addToSet: {
               lastAccessTime: { roomId, lastAccessMoment: Date.now() },
+            },
+          }
+        );
+        // console.log(
+        //   userIdOfOppositeUser,
+        //   `USER_CHAT_LAST_ACCESS_TIME_model updated`
+        // );
+        await USER_CHAT_LAST_ACCESS_TIME_model.findOneAndUpdate(
+          { userId: userIdOfOppositeUser },
+          {
+            $addToSet: {
+              lastAccessTime: { roomId, lastAccessMoment: 0 },
             },
           }
         );
@@ -229,6 +246,16 @@ ChatRouter.get(
   async (req, res): Promise<void> => {
     const userId = req.userId;
     try {
+      // DOCUMENT SPECIFIC TO USER
+      const lastAccessToAllRoomsDOC =
+        await USER_CHAT_LAST_ACCESS_TIME_model.findOne({ userId })
+          .select("lastAccessTime")
+          .lean();
+
+      const lastAccessToAllRooms = lastAccessToAllRoomsDOC
+        ? lastAccessToAllRoomsDOC.lastAccessTime
+        : [];
+
       // DOCUMENT SPECIFIC TO USER
       const activeChats = (await USER_CONVERSATION_MAPPER_MODEL.findOne({
         userId,
@@ -278,7 +305,7 @@ ChatRouter.get(
       ).map((ele) => ele.value);
 
       const GROUP_ONLYfieldsNEEDED = activeChats?.GROUPchat?.map(
-        (ele): combinedActiveChat => ({
+        (ele): any => ({
           chatId: ele?._id || "",
           chatName: ele?.groupName || "",
           roomId: ele.roomId,
@@ -298,10 +325,25 @@ ChatRouter.get(
         ? GROUP_ONLYfieldsNEEDED
         : [];
 
-      const combinedChats: combinedActiveChat[] = [
+      let combinedChats: combinedActiveChat[] = [
         ...on2oneArrayToCombine,
         ...groupArrayToCombine,
       ];
+
+      combinedChats.map((ele) => {
+        // lastAccessToAllRooms is document
+        // lastAccessTime is array within that document which contains { roomId , lastAccessTime }
+
+        const USER_LAST_ACCESS_TIME: {
+          roomId: string;
+          lastAccessMoment: number;
+        }[] = lastAccessToAllRooms.filter((elem) => elem.roomId == ele.roomId);
+
+        ele.USER_LAST_ACCESS_TIME = USER_LAST_ACCESS_TIME[0]
+          ? USER_LAST_ACCESS_TIME[0].lastAccessMoment
+          : Date.now();
+        return ele;
+      });
 
       if (combinedChats.length > 0) {
         combinedChats.sort((a, b): any => {

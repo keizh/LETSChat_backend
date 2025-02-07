@@ -33,7 +33,7 @@ interface ONE2ONE_Interface {
   messages: mssgInterface[];
   lastUpdated: number;
   lastMessageSender: String;
-  lastMessageTime: Number;
+  lastMessageTime: number;
 }
 interface GROUP_Interface {
   _id: string;
@@ -44,7 +44,7 @@ interface GROUP_Interface {
   profileURL: string;
   lastUpdated: number;
   lastMessageSender: String;
-  lastMessageTime: Number;
+  lastMessageTime: number;
 }
 
 export interface USER_CONVERSATION_MAPPER_Int {
@@ -69,6 +69,7 @@ export interface combinedActiveChat {
   roomId: string;
   lastUpdated: number;
   profileURL: string;
-  lastMessageSender: String;
-  lastMessageTime: Number;
+  lastMessageSender: string;
+  lastMessageTime: number;
+  USER_LAST_ACCESS_TIME?: number;
 }

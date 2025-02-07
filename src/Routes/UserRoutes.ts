@@ -89,7 +89,7 @@ UserRouter.get(
         );
       } else {
         // creating new user
-        console.log(`CREATING NEW USER ------------->`);
+        // console.log(`CREATING NEW USER ------------->`);
         const newUser = new USER_model({
           _id: id,
           name: name,
@@ -116,7 +116,7 @@ UserRouter.get(
           lastAccessTime: [],
         });
         const d1 = await newDocToSave1.save();
-        console.log(`d1`, d1);
+        // console.log(`d1`, d1);
         // creating a userDOcument for USER_CONVERSATION_MAPPER
         const newDocToSave2 = new USER_CONVERSATION_MAPPER_MODEL({
           userId: newUserSaved._id,
@@ -124,7 +124,7 @@ UserRouter.get(
           GROUPchat: [],
         });
         const d2 = await newDocToSave2.save();
-        console.log(`d2`, d2);
+        // console.log(`d2`, d2);
       }
       res.redirect(
         `${process.env.LOCAL_FRONTEND_URL}/user/auth?jwt=${jwtTOKEN}`

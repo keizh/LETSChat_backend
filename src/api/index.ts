@@ -33,10 +33,6 @@ cloudinary.config({
   api_secret: process.env.api_secret,
 });
 
-console.log("cloud_name", process.env.cloud_name);
-console.log("api_key", process.env.api_key);
-console.log("api_secret", process.env.api_secret);
-
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
@@ -84,8 +80,8 @@ wss.on("connection", (socket) => {
           // console.log(`LINE 46`, objectOfUsers);
           // async job inside of the below function so the reflection in objectOfRooms will take time
           UpdateobjectOfRoomsLogin(userIdLogin, socket);
-          console.log(`objectOfUser at login`, objectOfUsers);
-          console.log(`objectOfRoom at login`, objectOfRooms);
+          // console.log(`objectOfUser at login`, objectOfUsers);
+          // console.log(`objectOfRoom at login`, objectOfRooms);
           break;
 
         // ⚠️ HANDLE CLIENT LOGOUT
@@ -117,7 +113,7 @@ wss.on("connection", (socket) => {
           break;
 
         case "SEND/MESSAGE":
-          console.log(`personal message sent`);
+          // console.log(`personal message sent`);
           const {
             userId: userIdOfSender,
             userName,
@@ -138,8 +134,11 @@ wss.on("connection", (socket) => {
             await ONE_2_ONE_CHAT_model.findByIdAndUpdate(
               chatId,
               {
-                $addToSet: {
-                  messages: mssgDOC,
+                $push: {
+                  messages: {
+                    $each: [mssgDOC],
+                    $position: 0,
+                  },
                 },
                 $set: {
                   lastUpdated: Date.now(),
@@ -153,8 +152,11 @@ wss.on("connection", (socket) => {
             await GROUP_CHAT_model.findByIdAndUpdate(
               chatId,
               {
-                $addToSet: {
-                  messages: mssgDOC,
+                $push: {
+                  messages: {
+                    $each: [mssgDOC],
+                    $position: 0,
+                  },
                 },
                 $set: {
                   lastUpdated: Date.now(),
@@ -175,7 +177,8 @@ wss.on("connection", (socket) => {
           break;
 
         case "CLOSE/CHAT":
-          const { userId: userIdToSetRoomIdToNull } = action.payload;
+          const { userId: userIdToSetRoomIdToNull, lastAccessMoment } =
+            action.payload;
           // last access time to room
           // 🌟 START: RESPONSIBLE FOR UPDATING LAST ACCESS TIME , WHEN CLOSING A CHAT
           await USER_CHAT_LAST_ACCESS_TIME_model.findOneAndUpdate(
@@ -184,7 +187,7 @@ wss.on("connection", (socket) => {
               "lastAccessTime.roomId":
                 objectOfUsers[userIdToSetRoomIdToNull].ActiveChatRoomId,
             },
-            { $set: { "lastAccessTime.$.lastAccessMoment": Date.now() } },
+            { $set: { "lastAccessTime.$.lastAccessMoment": lastAccessMoment } },
             { new: true }
           );
           // ❌ END : RESPONSIBLE FOR UPDATING LAST ACCESS TIME , WHEN CLOSING A CHAT
