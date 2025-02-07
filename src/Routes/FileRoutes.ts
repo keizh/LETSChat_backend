@@ -3,7 +3,11 @@ import AuthorizedRoute from "../utils/AuthorizedRoute";
 const cloudinary = require("cloudinary").v2;
 const multer = require(`multer`);
 import { objectOfRooms, objectOfUsers } from "../api";
-import { ONE_2_ONE_CHAT_model, GROUP_CHAT_model } from "../model/modelIndex";
+import {
+  ONE_2_ONE_CHAT_model,
+  GROUP_CHAT_model,
+  USER_model,
+} from "../model/modelIndex";
 import { v4 as uuidv4 } from "uuid";
 import { SendMessageToAllActiveMembers } from "../utils/ExecutionerFn";
 import { mssgInterface } from "../types";
@@ -148,20 +152,34 @@ fileRouter.post(
   upload.single("profileImage"),
   async (req, res) => {
     const file = req.file;
-    console.log(file);
+    console.log(`update eprofile image hit 🌟🌟🌟🌟🌟`);
     try {
       if (file) {
         const uploaded = await cloudinary.uploader.upload(file.path, {
           resource_type: "auto",
         });
+        console.log(uploaded);
+        const userId = req.userId;
+
+        await USER_model.findByIdAndUpdate(
+          userId,
+          {
+            $set: {
+              profileURL: uploaded.secure_url,
+            },
+          },
+          { new: true }
+        );
+
         res.status(200).json({
           message: "ProfileImage was successfully updated",
-          data: uploaded,
+          data: uploaded.secure_url,
         });
         return;
       }
       res.status(404).json({ message: "Failed to Provide Image" });
     } catch (err) {
+      console.error(err);
       res.status(500).json({ message: "Failed to update Profile Image" });
     }
   }
