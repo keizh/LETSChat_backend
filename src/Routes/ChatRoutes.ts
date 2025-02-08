@@ -95,7 +95,6 @@ ChatRouter.get(
 //  a. if conversation exists mark last login
 //  b. if conversation does not exist , make and then mark last login
 // RESPONSIBLE FOR MARKING ACTIVE ROOM
-
 ChatRouter.post(
   "/ONE2ONE",
   AuthorizedRoute,
@@ -106,15 +105,31 @@ ChatRouter.post(
         userIdOfClient,
         userIdOfOppositeUser,
         lastAccessMoment,
+        numberOfDeletedMessages,
+        numberOfRecievedMessages,
+        page,
       } = req.body;
+
       const userId = req.userId as string;
+
+      const limit = 25;
+      const currPage = page;
+      const nextPage = page + 1;
+
+      // fetching one 2 one chat checking if such a chat exists or not
       const data = await ONE_2_ONE_CHAT_model.findOne({
         participants: participants.sort(),
       }).lean();
 
       if (data) {
-        // console.log(`line 112`, objectOfUsers);
+        // data does exist so it can be paginated
         const { roomId, _id: chatId } = data;
+        const total_messages =
+          data.messages.length -
+          (numberOfRecievedMessages - numberOfDeletedMessages);
+        const total_pages = Math.ceil(total_messages / limit);
+        const hasMore: boolean = total_pages > currPage;
+
         // RESPONSIBLE FOR MARKING LAST LOGIN TIME
         await USER_CHAT_LAST_ACCESS_TIME_model.findOneAndUpdate(
           { userId, "lastAccessTime.roomId": roomId },
@@ -125,11 +140,19 @@ ChatRouter.post(
         objectOfUsers[userId].IsUserActiveInAnyChat = true;
         objectOfUsers[userId].ActiveChatRoomId = roomId;
         // END :RESPONSIBLE FOR MARKING ACTIVE ROOM for the user
+
+        const messages = ONE_2_ONE_CHAT_model["messages"].slice(
+          limit * (currPage - 1) +
+            (numberOfRecievedMessages - numberOfDeletedMessages),
+          limit
+        );
+
+        // PAGINATED DATA HAS BEEN RETURNED BELOW
+        res.status(200).json({ data, messages, hasMore, nextPage });
+        return;
       }
 
-      // console.log(`new document , `, data);
-      // console.log(`82`, data);
-      // if data does not exist, it means the ONE2ONE HAS YET TO CREATED
+      // if data does not exist, it means the ONE2ONE chat HAS YET TO CREATED ~ no need for pagination over here
       if (!data) {
         let roomId = uuidv4();
         let _id = `PERSONAL-${uuidv4()}`;
@@ -225,12 +248,14 @@ ChatRouter.post(
         );
         // END : ADDING NEW CHAT TO LAST_ACCESS_USER_TIME_MODEL
 
-        res.status(200).json({ data: newONE2ONECHAT });
-        // console.log(`94`, newONE2ONECHAT);
+        res.status(200).json({
+          data: newONE2ONECHAT,
+          messages: [],
+          hasMore: false,
+          nextPage: 1,
+        });
         return;
       }
-      // console.log(data);
-      res.status(200).json({ data });
     } catch (err: unknown) {
       console.error(`line 100`, err);
       const mssg = err instanceof Error ? err.message : "";
@@ -239,19 +264,59 @@ ChatRouter.post(
   }
 );
 
-// RESPONSIBLE FOR FETCHING ACTIVE CHATS
+// This Route will only be provided to those that have been reciently added and not been fetched from database
+ChatRouter.delete(
+  "/DeleteMessage",
+  AuthorizedRoute,
+  async (req, res): Promise<void> => {
+    const { mssgId, chatId } = req.query;
+    const userId = req.userId as string;
+    try {
+      if (!mssgId || !chatId) {
+        res.status(404).json({ message: "failed to provide message id" });
+        return;
+      }
+
+      const newData = await ONE_2_ONE_CHAT_model.findByIdAndUpdate(
+        chatId,
+        {
+          $pull: {
+            messages: { mssgId: mssgId },
+          },
+        },
+        { new: true }
+      );
+
+      if (newData) {
+        res.status(200).json({ message: "Successfully deleted" });
+        return;
+      }
+    } catch (err) {
+      res.status(500).json({ message: "Failed to delete messages" });
+    }
+  }
+);
+
+//  RESPONSIBLE FOR FETCHING ACTIVE CHATS
 ChatRouter.get(
   "/activeChats",
   AuthorizedRoute,
   async (req, res): Promise<void> => {
+    // userId
     const userId = req.userId;
+    // messagesRecieved , messagesDeleted , PageNumber
+    const messagesRecieved = req.query.messagesRecieved;
+    const messagesDeleted = req.query.messagesDeleted;
+    const PageNumber = req.query.PageNumber;
+
     try {
-      // DOCUMENT SPECIFIC TO USER
+      // USER_CHAT_LAST_ACCESS_TIME_model DOCUMENT specific to user with only lastAccessTime dataField
       const lastAccessToAllRoomsDOC =
         await USER_CHAT_LAST_ACCESS_TIME_model.findOne({ userId })
           .select("lastAccessTime")
           .lean();
 
+      // typescript necessity to check if lastAccessToAllRoomsDOC exists for us to use lastAccessTime dataField from it
       const lastAccessToAllRooms = lastAccessToAllRoomsDOC
         ? lastAccessToAllRoomsDOC.lastAccessTime
         : [];
