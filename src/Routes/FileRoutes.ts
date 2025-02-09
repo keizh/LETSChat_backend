@@ -9,7 +9,10 @@ import {
   USER_model,
 } from "../model/modelIndex";
 import { v4 as uuidv4 } from "uuid";
-import { SendMessageToAllActiveMembers } from "../utils/ExecutionerFn";
+import {
+  SendMessageToAllActiveMembers,
+  SendDeleteMessage,
+} from "../utils/ExecutionerFn";
 import { mssgInterface } from "../types";
 const fileRouter = Router();
 
@@ -62,6 +65,7 @@ fileRouter.post(
       // console.log(`---------------------->`);
 
       const isItGroupChat = chatId.includes("PERSONAL");
+      console.log(isItGroupChat);
 
       // // settle them , cloudinary can take concurrent uploads
       const arrayOfAllSettled = await Promise.allSettled(
@@ -110,8 +114,10 @@ fileRouter.post(
         // console.log(`messages from all fulfilled promises =>`, messages);
         // console.log(`---------------------->`);
         // for updating in group
+        console.log(`messages`, messages);
         const reverse_messages = messages.reverse();
-        if (isItGroupChat) {
+        console.log(`reversed messages`, reverse_messages);
+        if (chatId.includes("PERSONAL") == false) {
           await GROUP_CHAT_model.findByIdAndUpdate(
             chatId,
             {
@@ -122,7 +128,8 @@ fileRouter.post(
             { new: true }
           );
         } else {
-          // for updating in ONE2ONE CHAT
+          console.log(`128===========>`);
+          console.log(`uploadinf files `);
           await ONE_2_ONE_CHAT_model.findByIdAndUpdate(
             chatId,
             {

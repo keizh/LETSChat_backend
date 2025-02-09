@@ -179,7 +179,7 @@ export const SendMessageToAllActiveMembers = async (
     // if user is active in chatroom send her message
     if (isUserActiveInRoomChat) {
       // console.log(`line 159`);
-      console.log(` WebSocketInstance ====>`, WebSocketInstance);
+      // console.log(` WebSocketInstance ====>`, WebSocketInstance);
       console.log(`----------------------------------------------------------`);
       console.log(` ⚠️ message has been sent ====>`, mssgDOC);
       WebSocketInstance.send(
@@ -207,5 +207,21 @@ export const SendMessageToAllActiveMembers = async (
         })
       );
     }
+  });
+};
+
+export const SendDeleteMessage = async ({ mssgId, chatId, roomId }) => {
+  const arrOfPeopleActiveInRoom = objectOfRooms[roomId];
+  arrOfPeopleActiveInRoom.forEach((ele) => {
+    const { WebSocketInstance } = ele;
+    WebSocketInstance.send(
+      JSON.stringify({
+        type: "DELETE/MESSAGE",
+        payload: {
+          mssgId,
+          chatId,
+        },
+      })
+    );
   });
 };

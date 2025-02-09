@@ -14,6 +14,7 @@ import {
   USER_CONVERSATION_MAPPER_Interface,
   combinedActiveChat,
 } from "../types";
+import { SendDeleteMessage } from "../utils/ExecutionerFn";
 
 // RESPONSIBLE FOR FETCHING FRIENDS
 ChatRouter.get(
@@ -105,9 +106,10 @@ ChatRouter.post(
         userIdOfClient,
         userIdOfOppositeUser,
         lastAccessMoment,
-        numberOfDeletedMessages,
-        numberOfRecievedMessages,
-        page,
+        messagesDeleted,
+        messagesRecieved,
+        PageNumber: page,
+        chatId,
       } = req.body;
 
       const userId = req.userId as string;
@@ -116,17 +118,21 @@ ChatRouter.post(
       const currPage = page;
       const nextPage = page + 1;
 
+      let data: any;
       // fetching one 2 one chat checking if such a chat exists or not
-      const data = await ONE_2_ONE_CHAT_model.findOne({
-        participants: participants.sort(),
-      }).lean();
+      if (chatId) {
+        data = await ONE_2_ONE_CHAT_model.findById(chatId).lean();
+      } else {
+        data = await ONE_2_ONE_CHAT_model.findOne({
+          participants: participants.sort(),
+        }).lean();
+      }
 
       if (data) {
         // data does exist so it can be paginated
-        const { roomId, _id: chatId } = data;
+        const { roomId, _id: chatId, messages } = data;
         const total_messages =
-          data.messages.length -
-          (numberOfRecievedMessages - numberOfDeletedMessages);
+          data.messages.length - (messagesRecieved - messagesDeleted);
         const total_pages = Math.ceil(total_messages / limit);
         const hasMore: boolean = total_pages > currPage;
 
@@ -141,14 +147,21 @@ ChatRouter.post(
         objectOfUsers[userId].ActiveChatRoomId = roomId;
         // END :RESPONSIBLE FOR MARKING ACTIVE ROOM for the user
 
-        const messages = ONE_2_ONE_CHAT_model["messages"].slice(
-          limit * (currPage - 1) +
-            (numberOfRecievedMessages - numberOfDeletedMessages),
-          limit
-        );
+        const startIndex =
+          limit * (currPage - 1) + (messagesRecieved - messagesDeleted);
+        const endIndex = startIndex + limit;
+
+        const slicedMessages = messages.slice(startIndex, endIndex);
+
+        console.log(`slicedMessages`, slicedMessages);
+        console.log(`messaeges`, messages);
+        console.log(`startIndex`, startIndex);
+        console.log(`endIndex`, endIndex);
 
         // PAGINATED DATA HAS BEEN RETURNED BELOW
-        res.status(200).json({ data, messages, hasMore, nextPage });
+        res
+          .status(200)
+          .json({ data, messages: slicedMessages, hasMore, nextPage });
         return;
       }
 
@@ -269,7 +282,8 @@ ChatRouter.delete(
   "/DeleteMessage",
   AuthorizedRoute,
   async (req, res): Promise<void> => {
-    const { mssgId, chatId } = req.query;
+    console.log(`DeleteMessage hit`);
+    const { mssgId, chatId, roomId } = req.query;
     const userId = req.userId as string;
     try {
       if (!mssgId || !chatId) {
@@ -287,6 +301,7 @@ ChatRouter.delete(
         { new: true }
       );
 
+      SendDeleteMessage({ mssgId, chatId, roomId });
       if (newData) {
         res.status(200).json({ message: "Successfully deleted" });
         return;
@@ -304,10 +319,6 @@ ChatRouter.get(
   async (req, res): Promise<void> => {
     // userId
     const userId = req.userId;
-    // messagesRecieved , messagesDeleted , PageNumber
-    const messagesRecieved = req.query.messagesRecieved;
-    const messagesDeleted = req.query.messagesDeleted;
-    const PageNumber = req.query.PageNumber;
 
     try {
       // USER_CHAT_LAST_ACCESS_TIME_model DOCUMENT specific to user with only lastAccessTime dataField
