@@ -100,7 +100,7 @@ ChatRouter.get(
 );
 
 // RESPONSIBLE FOR STARTING ONE2ONE conversation if non exist
-// RESPONSIBLE FOR FETCHING ONE20NE conversation if exists & GROUP conversation
+// RESPONSIBLE FOR FETCHING ONE20NE conversation if exists & GROUP conversation fetching
 // RESPONSIBLE FOR MARKING LAST LOGIN TIME
 //  a. if conversation exists mark last login
 //  b. if conversation does not exist , make and then mark last login
@@ -359,6 +359,8 @@ ChatRouter.get(
         activeChats?.ONE2ONEchat.filter((ele) =>
           ele.messages ? ele.messages.length > 0 : false
         );
+      
+      
 
       // KEEP ONLY THOSE DATA FIELDS THAT ARE REQUIRED
       // without promise.all i will get array of pending promise
@@ -389,6 +391,7 @@ ChatRouter.get(
         }) ?? []
       );
 
+
       // filtering to have only fullfilled
       const filteredONE2ONE_ONLYfieldsNEEDED = ONE2ONE_ONLYfieldsNEEDED.filter(
         (ele) => ele.status == "fulfilled"
@@ -411,16 +414,18 @@ ChatRouter.get(
       )
         ? filteredONE2ONE_ONLYfieldsNEEDED
         : [];
+
       const groupArrayToCombine = Array.isArray(GROUP_ONLYfieldsNEEDED)
         ? GROUP_ONLYfieldsNEEDED
         : [];
 
+      // to put last access time of each user to the the active chats
       let combinedChats: combinedActiveChat[] = [
         ...on2oneArrayToCombine,
         ...groupArrayToCombine,
       ];
 
-      combinedChats.map((ele) => {
+      combinedChats=combinedChats.map((ele) => {
         // lastAccessToAllRooms is document
         // lastAccessTime is array within that document which contains { roomId , lastAccessTime }
 
