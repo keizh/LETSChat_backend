@@ -7,6 +7,7 @@ import {
 } from "../model/modelIndex";
 import { objectOfRooms, objectOfUsers } from "../api/index";
 import { USER_CONVERSATION_MAPPER_Interface, mssgInterface } from "../types";
+import { forEachChild } from "typescript";
 
 export const UpdateobjectOfRoomsLogin = async (userId, socket) => {
   try {
@@ -105,7 +106,8 @@ export const SendMessageToAllActiveMembers = async (
   userIdOfSender: string,
   chatId: string
 ) => {
-  const chatDocument = chatId.includes("PERSONAL")
+  // chatDocument could be either one among them , that being : PERSONAL , GROUP
+  const chatDocument: any = chatId.includes("PERSONAL")
     ? await ONE_2_ONE_CHAT_model.findById(chatId).lean()
     : await GROUP_CHAT_model.findById(chatId).lean();
   // console.log(
@@ -113,9 +115,8 @@ export const SendMessageToAllActiveMembers = async (
   // );
   const senderUserDocument = await USER_model.findById(userIdOfSender).lean();
   // console.log(` 1 ⚠️ senderUserDocument`, senderUserDocument);
-
   const messageArrLength = chatDocument ? chatDocument.messages.length : 0;
-  // all the user who are active in the room
+  // All the user's who are active on the application and are part of the room ( its does not mean they are active in the room )
   const arrayOfUsersActiveonApplication = objectOfRooms[roomId];
 
   /*
@@ -159,6 +160,32 @@ export const SendMessageToAllActiveMembers = async (
           },
         })
       );
+    }
+  }
+
+  // sending group activation message to all active user's
+  if (chatDocument && messageArrLength == 1 && chatId.includes("GROUP")) {
+    // step 1 : List of Users part of
+    if (arrayOfUsersActiveonApplication.length > 0) {
+      arrayOfUsersActiveonApplication.forEach((ele) => {
+        const { userId, WebSocketInstance } = ele;
+        WebSocketInstance.send(
+          JSON.stringify({
+            type: "ACTIVE/CHAT/ACTIVATION",
+            payload: {
+              chatId,
+              chatName: chatDocument.groupName,
+              roomId,
+              lastUpdated: chatDocument.lastUpdated,
+              profileURL: chatDocument?.profileURL,
+              lastMessageSender: chatDocument.lastMessageSender,
+              lastMessageTime: chatDocument.lastMessageTime,
+              USER_LAST_ACCESS_TIME: 0,
+              // why 0 beacuse user has yet to visit it
+            },
+          })
+        );
+      });
     }
   }
 

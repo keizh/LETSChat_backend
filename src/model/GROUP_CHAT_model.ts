@@ -37,6 +37,8 @@ const GROUP_CHAT = new mongoose.Schema(
           type: Number,
           default: Date.now,
         },
+        senderId: String,
+        senderName: String,
       },
     ],
     roomId: {

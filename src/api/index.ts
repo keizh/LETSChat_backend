@@ -103,7 +103,7 @@ wss.on("connection", (socket) => {
 
           // 🌟 START : DELETE userID from objectOfUsers
           delete objectOfUsers[userIdLogout];
-          // ❌ END : DELETE userID from objectOfUsers
+          // ❌ END   : DELETE userID from objectOfUsers
 
           // console.log(`LINE 53`, objectOfUsers);
           // async job inside of the below function so the reflection in objectOfRooms will take time
