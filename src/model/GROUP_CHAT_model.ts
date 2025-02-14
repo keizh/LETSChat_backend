@@ -53,6 +53,10 @@ const GROUP_CHAT = new mongoose.Schema(
     lastUpdated: Number,
     lastMessageSender: String,
     lastMessageTime: Number,
+    admin: {
+      type: String,
+      required: true,
+    },
   },
   { timestamps: true, _id: false }
 );

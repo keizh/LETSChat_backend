@@ -181,6 +181,7 @@ export const SendMessageToAllActiveMembers = async (
               lastMessageSender: chatDocument.lastMessageSender,
               lastMessageTime: chatDocument.lastMessageTime,
               USER_LAST_ACCESS_TIME: 0,
+              admin: userIdOfSender,
               // why 0 beacuse user has yet to visit it
             },
           })
