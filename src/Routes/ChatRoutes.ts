@@ -614,28 +614,77 @@ ChatRouter.post(
   async (req, res) => {
     try {
       const image: any = req.file;
+      const userId = req.userId;
+      console.log(`image file -->`, image);
       var updatedData: any;
       // updateImage ~ true if update has been made if no update has been made then it will be false
       // participants ~ if participants is [] meaning no need for change , if participant is not empty means updation is needed
-      const { updateImage, participants, groupName, chatId, roomId } = req.body;
+      const {
+        updateImage,
+        participants: par,
+        groupName,
+        chatId,
+        roomId,
+      } = req.body;
+      const participants = Array.from(JSON.parse(par));
+      const IsImageProvidedForUpdate = Boolean(JSON.parse(updateImage));
+      console.log(
+        `IsImageProvidedForUpdate`,
+        IsImageProvidedForUpdate,
+        typeof IsImageProvidedForUpdate
+      );
+      console.log(`participants`, participants, participants instanceof Array);
+      console.log(`groupName`, groupName);
+      console.log(`chatId`, chatId);
+      console.log(`roomId`, roomId);
+
       const groupDOC = await GROUP_CHAT_model.findById(chatId).lean();
+
       // new image secure_url
-      if (updateImage == true && image != null && image != undefined) {
+      console.log(
+        `IsImageProvidedForUpdate == true`,
+        IsImageProvidedForUpdate == true
+      );
+      console.log(`image != null`, image != null);
+      console.log(` image != undefined`, image != undefined);
+      if (
+        IsImageProvidedForUpdate == true &&
+        image != null &&
+        image != undefined
+      ) {
         var uploaded = await cloudinary.uploader.upload(image.path, {
           resource_type: "auto",
         });
+        console.log(`console has reached inside the image upload block`);
+        console.log(uploaded);
       }
 
-      // participants
-      // groupName
-
-      // update image
-      if (updateImage) {
+      // UPDATING GROUP NAME SUCCESSFULLY DONE
+      if (
+        IsImageProvidedForUpdate == false &&
+        groupDOC &&
+        groupDOC.groupName != groupName
+      ) {
+        console.log(`inside 652 ----------------->@@@@@@@@@`);
         updatedData = await GROUP_CHAT_model.findByIdAndUpdate(
           chatId,
           {
             $set: {
-              profileURL: uploaded.path,
+              groupName,
+            },
+          },
+          { new: true }
+        );
+      }
+
+      // UPDATE GROUP PROFILE IMAGE
+      // UPDATE GROUP NAME
+      if (IsImageProvidedForUpdate == true) {
+        updatedData = await GROUP_CHAT_model.findByIdAndUpdate(
+          chatId,
+          {
+            $set: {
+              profileURL: uploaded.secure_url,
               groupName,
             },
           },
@@ -655,45 +704,64 @@ ChatRouter.post(
           { new: true }
         );
         // updating USER_Mapper_Conversation
-        // find out user which are not part of new participant list
+        // find out users which are not part of new participant list ~ removed from group
 
+        // groupDOC?.participants? ==> a , b , c , d ==> all participants including admin / creator of group
+        //           participants  ==> b , d ==> new members +  old members
+        console.log(`admin`, userId);
+        console.log(`groupDOC?.participants`, groupDOC?.participants);
+        console.log(`participansts`, participants);
+        // REMOVED USER'S IS WORKING CORRECTLY
         const removedUsers: string[] | null | undefined =
           groupDOC?.participants?.filter((ele) => {
             const userIndex = participants.findIndex((elem) => elem == ele);
             if (userIndex == -1) {
+              // if -1 remove that specific elem
               return true;
             }
+            // if not -1 , don't remove that specific elem
             return false;
           });
         console.log(`removed Users  ==>`, removedUsers);
-        const addedUser: string[] | null | undefined = participants.filter(
-          (ele) => {
-            // participants has new users
-            // finding wheather a user that exists in participants array, is he part of old partipants
-            // if user is part of old participantrs ~ not -1 return true to filter them out
-            // else -1 return false to not filtern them out
-            const userIndex = groupDOC?.participants?.findIndex(
-              (elem) => elem == ele
-            );
-            if (userIndex == -1) {
-              return false;
-            }
+
+        const addedUser: string[] | null | undefined = (
+          participants as string[]
+        ).filter((ele) => {
+          // participants has new users + old members
+          // remove old members ~ HOW , if userIndex != -1 , means it exists return true to filter it
+          const userIndex = groupDOC?.participants?.findIndex(
+            (elem) => elem == ele
+          );
+          console.log(`ele`, ele);
+          console.log(`userIndex`, userIndex);
+          if (userIndex == -1) {
             return true;
+          } else {
+            return false;
           }
-        );
+        });
         console.log(`addedUser Users ==>`, addedUser);
 
-        if (removedUsers) {
-          await Promise.allSettled(
+        if (removedUsers && removedUsers.length > 0) {
+          // removing groupId from GROUPchat dataField :  USER_CONVERSATION_MAPPER_MODEL document of user's who have been removed
+          const ans = await Promise.allSettled(
             removedUsers?.map(async (ele) => {
-              await USER_CONVERSATION_MAPPER_MODEL.findById(ele, {
-                $pull: {
-                  GROUPchat: chatId,
-                },
-              });
+              await USER_CONVERSATION_MAPPER_MODEL.findOneAndUpdate(
+                { userId: ele },
+                {
+                  $pull: {
+                    GROUPchat: chatId,
+                  },
+                }
+              );
             })
           );
+          console.log(
+            `UPDATED USER_CONVERSATION_MAPPER_MODEL FOR REMOVED USER`,
+            ans
+          );
 
+          // sending message to all removed users who all are active on the application to remove group chat
           removedUsers.forEach((ele) => {
             if (objectOfUsers[ele]) {
               const { socket } = objectOfUsers[ele];
@@ -709,7 +777,7 @@ ChatRouter.post(
             }
           });
 
-          // START : UPDATING ALL PARTICIPANTS USER_CHAT_LAST_ACCESS_TIME_model
+          // START : PULLING ROOMiD FROM USER_CHAT_LAST_ACCESS_TIME_MODEL DOCUMENT OF USERS WHO HAVE BEEN REMOVED
           await Promise.allSettled(
             removedUsers.map(async (ele: string) => {
               const result =
@@ -724,20 +792,25 @@ ChatRouter.post(
               return result;
             })
           );
-          // END : UPDATING ALL PARTICIPANTS USER_CHAT_LAST_ACCESS_TIME_model
+          // END : PULLING ROOMiD FROM USER_CHAT_LAST_ACCESS_TIME_MODEL DOCUMENT OF USERS WHO HAVE BEEN REMOVED
         }
 
-        if (addedUser) {
+        if (addedUser && addedUser.length > 0) {
+          // adding groupId to GROUPchat dataField :  USER_CONVERSATION_MAPPER_MODEL document of user's who have been added
           await Promise.allSettled(
             addedUser?.map(async (ele) => {
-              await USER_CONVERSATION_MAPPER_MODEL.findById(ele, {
-                $addToSet: {
-                  GROUPchat: chatId,
-                },
-              });
+              await USER_CONVERSATION_MAPPER_MODEL.findOneAndUpdate(
+                { userId: ele },
+                {
+                  $addToSet: {
+                    GROUPchat: chatId,
+                  },
+                }
+              );
             })
           );
 
+          // sending message to all added users who are active on the application to add a new group to
           addedUser.forEach((ele) => {
             if (objectOfUsers[ele]) {
               const { socket } = objectOfUsers[ele];
@@ -753,13 +826,14 @@ ChatRouter.post(
                     lastMessageSender: updatedData.lastMessageSender,
                     lastMessageTime: updatedData.lastMessageTime,
                     USER_LAST_ACCESS_TIME: 0,
+                    admin: userId,
                   },
                 })
               );
             }
           });
 
-          // START : UPDATING ALL PARTICIPANTS USER_CHAT_LAST_ACCESS_TIME_model
+          // START : ADDING ROOMID & LASTACCESSMOMENT TO USER_CHAT_LAST_ACCESS_TIME_model document of all the added user's
           await Promise.allSettled(
             addedUser.map(async (ele: string) => {
               const result =
@@ -774,12 +848,15 @@ ChatRouter.post(
               return result;
             })
           );
-          // END : UPDATING ALL PARTICIPANTS USER_CHAT_LAST_ACCESS_TIME_model
+          // END : ADDING ROOMID & LASTACCESSMOMENT TO USER_CHAT_LAST_ACCESS_TIME_model document of all the added user's
         }
 
-        // sending delete message to remove group from ui
-        // sending add message to add group to ui
-        // updating objectOfRoom
+        // sending delete message to remove group from ui ~ done
+        // sending add message to add group to ui ~ done
+        // updating objectOfRoom ~
+
+        // Since we have added members to group chat and removed members from  group chat
+        // We also have to update objectOfRooms[roomId] ~ for that specific room
 
         // temp to carry the array we will replace objectOfRoom[roomid] with
         var temp: {
@@ -787,7 +864,7 @@ ChatRouter.post(
           WebSocketInstance: WebSocket;
         }[] = [];
 
-        participants.forEach((ele) => {
+        (participants as string[]).forEach((ele) => {
           if (objectOfUsers[ele]) {
             temp.push({
               userId: ele,
@@ -795,17 +872,25 @@ ChatRouter.post(
             });
           }
         });
-
+        console.log(`---------------------------->`);
+        console.log(`old objectOfRooms[roomId]`, objectOfRooms[roomId]);
         objectOfRooms[roomId] = temp;
+        console.log(`NEW objectOfRooms[roomId]`, objectOfRooms[roomId]);
+        console.log(`---------------------------->`);
       }
+      // res.status(200).json({});
       res.status(200).json({
         message: "Successfully Changed",
-        groupName: updatedData?.groupName,
-        profileURL: updatedData?.profileURL,
+        participants,
+        groupName,
+        chatId,
       });
       return;
     } catch (err) {
-      res.status(500).json({ message: "Failed to update image" });
+      res.status(500).json({
+        message:
+          err instanceof Error ? err.message : "Error in update group editt",
+      });
     }
   }
 );
@@ -826,5 +911,64 @@ ChatRouter.get(
     }
   }
 );
+
+// RESPONSIBLE FOR FETCHING GROUP MEMBERS
+ChatRouter.get("/fetchGroupMembers", AuthorizedRoute, async (req, res) => {
+  try {
+    const { chatId } = req.query;
+    const userId = req.userId;
+    const data = await GROUP_CHAT_model.findById(chatId)
+      .select("participants")
+      .lean();
+    var allSettledData: any = [];
+    var count = 0;
+
+    let defaultValuesForSelect = [];
+    // console.log(`###################$$$$$$$$$$%%%%%%%%%%%%`);
+    if (data && data.participants && Array.isArray(data.participants)) {
+      allSettledData = await Promise.allSettled(
+        data.participants.map(async (ele) => {
+          console.log(`line 846 -->`, ele);
+          const result = await USER_model.findById(ele).select("name");
+          return result;
+        })
+      );
+    }
+    // console.log(`854`, allSettledData);
+
+    defaultValuesForSelect = allSettledData
+      .filter((ele: { status: string }) => ele.status == "fulfilled")
+      .map((ele: { status: string; value: { _id: string; name: string } }) => ({
+        value: ele.value._id,
+        label: ele.value.name,
+      }))
+      .filter((ele) => ele.value != userId);
+
+    // console.log(`defaultValuesForSelect`, defaultValuesForSelect);
+    // console.log(`count`, count);
+
+    if (
+      data &&
+      data.participants &&
+      defaultValuesForSelect.length + 1 != data.participants.length
+    ) {
+      res.status(400).json({
+        message: "failed to fetch group members & defaultValuesForSelect",
+      });
+      return;
+    }
+
+    // console.log(`882`, data);
+    // console.log(`883`, defaultValuesForSelect);
+    res.status(200).json({
+      message: "fetched successfully",
+      data: data ? data.participants.filter((ele) => ele != userId) : [],
+      defaultValuesForSelect,
+    });
+    return;
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch group group members" });
+  }
+});
 
 export default ChatRouter;
