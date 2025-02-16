@@ -971,4 +971,76 @@ ChatRouter.get("/fetchGroupMembers", AuthorizedRoute, async (req, res) => {
   }
 });
 
+ChatRouter.delete("/deleteGroup", AuthorizedRoute, async (req, res) => {
+  try {
+    const { chatId: a, roomId: b } = req.query;
+    const chatId: string = a?.toString() as string;
+    const roomId: string = b?.toString() as string;
+    const groupDOC = await GROUP_CHAT_model.findById(chatId)
+      .select("participants")
+      .lean();
+    const participants = groupDOC ? groupDOC.participants : [];
+
+    // updating USER_CONVERSATION_MAPPER_MODEL
+    await Promise.allSettled(
+      participants.map(async (ele) => {
+        const res = await USER_CONVERSATION_MAPPER_MODEL.findOneAndUpdate(
+          { userId: ele },
+          {
+            $pull: {
+              GROUPchat: chatId,
+            },
+          },
+          { new: true }
+        );
+        return res;
+      })
+    );
+
+    // updating USER_CHAT_LAST_ACCESS_TIME_model
+    await Promise.allSettled(
+      participants.map(async (ele) => {
+        const res = await USER_CHAT_LAST_ACCESS_TIME_model.findOneAndUpdate(
+          { userId: ele },
+          {
+            $pull: {
+              lastAccessTime: { roomId },
+            },
+          },
+          { new: true }
+        );
+        return res;
+      })
+    );
+
+    // deleting GROUP_CHAT_model
+    await GROUP_CHAT_model.findByIdAndDelete(chatId);
+
+    // sending websocket delete message to all user's who are online at the moment;
+    for (const ele of participants) {
+      if (objectOfUsers[ele]) {
+        objectOfUsers[ele].socket.send(
+          JSON.stringify({
+            type: "DELETE/GROUP/CHAT",
+            payload: {
+              roomId,
+              chatId,
+            },
+          })
+        );
+      }
+    }
+
+    // deleting key:roomId fromm objectOfRooms
+    delete objectOfRooms[roomId];
+
+    res.status(200).json({ message: "successfully deleted" });
+  } catch (err) {
+    res.status(500).json({
+      message:
+        err instanceof Error ? err.message : "Error occured in deleteGroup",
+    });
+  }
+});
+
 export default ChatRouter;
